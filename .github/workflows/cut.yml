@@ -1,0 +1,57 @@
+# Cut a release: bump the version and tag it, then dispatch release off the tag.
+name: cut
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: semver bump
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions: {}
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+
+  cut:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the bump + tag
+      actions: write # dispatch release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main # the branch tip, not the dispatch SHA
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: bump manifest version
+        id: bump
+        run: |
+          jq --arg bump "${{ inputs.bump }}" '.version |= (split(".") | map(tonumber)
+            | if $bump == "major" then [.[0] + 1, 0, 0]
+              elif $bump == "minor" then [.[0], .[1] + 1, 0]
+              else [.[0], .[1], .[2] + 1] end
+            | map(tostring) | join("."))' manifest.json > manifest.tmp
+          mv manifest.tmp manifest.json
+          bunx biome format --write manifest.json
+          echo "version=$(jq -r .version manifest.json)" >> "$GITHUB_OUTPUT"
+      - name: commit, tag, and trigger release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          version: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "v$version"
+          # branch first, tag second (never --follow-tags): a moved main is rejected before the tag exists
+          git push origin HEAD:main
+          git tag -a "v$version" -m "v$version"
+          git push origin "v$version"
+          # token-pushed tags don't fire on:push, so dispatch instead
+          gh workflow run release.yml --ref main -f tag="v$version"

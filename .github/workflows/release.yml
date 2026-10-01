@@ -1,47 +1,35 @@
+# Build a tagged version and attach it to a GitHub release; safe to rerun on the same tag.
 name: release
 
 on:
   workflow_dispatch:
     inputs:
-      bump:
-        description: semver bump
-        type: choice
-        options: [patch, minor, major]
-        default: patch
+      tag:
+        description: release tag to publish (e.g. v1.2.3)
+        required: true
+        type: string
 
 permissions:
-  contents: write
+  contents: write # create the GitHub release
 
 jobs:
-  build:
-    uses: ./.github/workflows/build.yml
-
   release:
-    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: bump manifest version
-        id: bump
-        run: |
-          IFS=. read -r major minor patch < <(jq -r .version manifest.json)
-          case "${{ inputs.bump }}" in
-            major) major=$((major + 1)); minor=0; patch=0 ;;
-            minor) minor=$((minor + 1)); patch=0 ;;
-            patch) patch=$((patch + 1)) ;;
-          esac
-          version="$major.$minor.$patch"
-          jq --arg v "$version" '.version = $v' manifest.json > manifest.tmp
-          mv manifest.tmp manifest.json
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-      - name: commit, tag, and release
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: oven-sh/setup-bun@v2
+      - run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
+      - run: bun install --frozen-lockfile
+      - run: bun export
+      - name: create release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ steps.bump.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          tag: ${{ inputs.tag }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -am "v$version"
-          git tag "v$version"
-          git push --follow-tags
-          gh release create "v$version" --generate-notes
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release upload "$tag" repub.zip --clobber
+          else
+            gh release create "$tag" --generate-notes --verify-tag repub.zip
+          fi
