@@ -29,7 +29,7 @@
     "defuddle": "^0.19.3",
     "entities": "^8.0.0",
     "jsdom": "^30.0.1",
-    "jszip": "^3.10.1",
+    "jszip": "^3.10.2",
     "leven": "^4.1.0",
     "marked": "^18.0.11",
     "mhtml-stream": "^3.0.1",
