@@ -1,5 +1,5 @@
 import type { DeviceModel } from "rmapi-js";
-import type { ShrinkMode } from "./glyphs";
+import type { CssOptions } from "./css";
 
 type Awaitable<T> = T | Promise<T>;
 
@@ -45,7 +45,7 @@ interface FontOption {
 }
 
 /** how we generate the epub */
-export interface EpubOptions extends FontOption {
+export interface EpubOptions extends CssOptions {
   imageHandling: ImageHandling;
   imageBrightness: number;
   imageShrink: boolean;
@@ -53,16 +53,12 @@ export interface EpubOptions extends FontOption {
   hrefHeader: boolean;
   bylineHeader: boolean;
   coverHeader: boolean;
-  rmCss: boolean;
-  codeCss: boolean;
-  tabCss: boolean;
   filterLinks: boolean;
   filterIframes: boolean;
   authorByline: boolean;
   convertTables: boolean;
   rotateTables: boolean;
   tableResolution: number;
-  shrinkGlyphs: ShrinkMode;
 }
 
 export interface UploadOptions extends FontOption {
@@ -112,8 +108,10 @@ export const defaultOptions: Options = {
   bylineHeader: true,
   coverHeader: true,
   rmCss: true,
+  fitImages: false,
   codeCss: true,
   tabCss: true,
+  customCss: "",
   filterLinks: true,
   filterIframes: true,
   authorByline: true,
