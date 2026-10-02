@@ -9,10 +9,9 @@ function getApi(
   deviceToken: string,
   maxCacheSize: number,
   authHost: string,
-  uploadHost: string,
   rawHost: string,
 ): Promise<RemarkableApi> {
-  const key = `${deviceToken}|${authHost}|${uploadHost}|${rawHost}`;
+  const key = `${deviceToken}|${authHost}|${rawHost}`;
   if (cachedApi === undefined || cachedKey !== key) {
     // caching the promise, not the api, keeps concurrent uploads on a single
     // instance, whose mutex then serializes their root updates
@@ -22,7 +21,6 @@ function getApi(
         maxCacheSize,
         cache: cache as string,
         authHost,
-        uploadHost,
         rawHost,
       });
     })();
@@ -46,7 +44,6 @@ async function upload(
     tags,
     viewBackgroundFilter,
     authHost,
-    uploadHost,
     rawHost,
     tokenUrl: _,
     device: __,
@@ -73,13 +70,7 @@ async function upload(
     viewBackgroundFilter: viewBackgroundFilter ?? undefined,
     title,
   };
-  const api = await getApi(
-    deviceToken,
-    1_000_000,
-    authHost,
-    uploadHost,
-    rawHost,
-  );
+  const api = await getApi(deviceToken, 1_000_000, authHost, rawHost);
   await put(api, title, payload, opts);
   await chrome.storage.local.set({ [CACHE_KEY]: api.dumpCache() });
 }
