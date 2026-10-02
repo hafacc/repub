@@ -8,8 +8,10 @@ import {
   type MimeData,
   parseSrcset,
   resolveByline,
+  shrinkSubstitutes,
   unwrapLinks,
 } from "./alter";
+import { substituted, substituteScale } from "./glyphs";
 
 function parseBody(html: string): Document {
   const { window } = new JSDOM(
@@ -200,4 +202,92 @@ test("dropAltCaptions() keeps captions on images without alt text", () => {
   );
   dropAltCaptions(doc.body);
   expect(doc.querySelector("figcaption")?.textContent).toBe("A bar chart");
+});
+
+test("shrinkSubstitutes() wraps characters the font can't draw", () => {
+  const doc = parseBody(`<p>as they are humane. \u2666</p>`);
+  shrinkSubstitutes(doc.body, substituted("dynamic", "reMarkable Serif Small"));
+  expect(doc.querySelector("span.repub-substitute")?.textContent).toBe(
+    "\u2666",
+  );
+  expect(doc.querySelector("p")?.textContent).toBe(
+    "as they are humane. \u2666",
+  );
+});
+
+test("shrinkSubstitutes() leaves characters the font has alone", () => {
+  const doc = parseBody(
+    `<p>an em dash \u2014 a bullet \u2022 an ellipsis \u2026</p>`,
+  );
+  shrinkSubstitutes(doc.body, substituted("dynamic", "reMarkable Serif Small"));
+  expect(doc.querySelector("span")).toBeNull();
+});
+
+test("shrinkSubstitutes() groups runs and keeps the surrounding text", () => {
+  const doc = parseBody(`<p>arrows \u2192\u2192 and back</p>`);
+  shrinkSubstitutes(doc.body, substituted("dynamic", "reMarkable Serif Small"));
+  const spans = doc.querySelectorAll("span.repub-substitute");
+  expect(spans.length).toBe(1);
+  expect(spans[0]?.textContent).toBe("\u2192\u2192");
+  expect(doc.querySelector("p")?.textContent).toBe(
+    "arrows \u2192\u2192 and back",
+  );
+});
+
+test("shrinkSubstitutes() follows the chosen font", () => {
+  const doc = parseBody(`<p>an arrow \u2192</p>`);
+  shrinkSubstitutes(doc.body, substituted("dynamic", "EB Garamond"));
+  expect(doc.querySelector("span")).toBeNull();
+});
+
+test("shrinkSubstitutes() shrinks what any font might lack when fitting any font", () => {
+  const doc = parseBody(`<p>an arrow \u2192 a diamond \u2666</p>`);
+  shrinkSubstitutes(doc.body, substituted("robust", "EB Garamond"));
+  const spans = doc.querySelectorAll("span.repub-substitute");
+  expect(spans.length).toBe(2);
+});
+
+test("substituteScale() only fits the chosen font when asked", () => {
+  expect(substituteScale("dynamic", "reMarkable Serif Small")).toBeCloseTo(
+    0.75,
+  );
+  expect(substituteScale("dynamic", "EB Garamond")).toBeCloseTo(0.85);
+  expect(substituteScale("dynamic", "")).toBeCloseTo(0.75);
+  expect(substituteScale("robust", "EB Garamond")).toBeCloseTo(0.75);
+});
+
+test("shrinkSubstitutes() leaves a passage in a script the font lacks alone", () => {
+  const doc = parseBody(
+    `<p>\u041f\u0440\u0438\u0432\u0435\u0442 \u043c\u0438\u0440, \u044d\u0442\u043e \u0442\u0435\u043a\u0441\u0442</p>`,
+  );
+  shrinkSubstitutes(doc.body, substituted("dynamic", "reMarkable Serif Small"));
+  expect(doc.querySelector("span")).toBeNull();
+});
+
+test("shrinkSubstitutes() judges each block on its own", () => {
+  const doc = parseBody(
+    `<p>\u65e5\u672c\u8a9e\u306e\u30c6\u30ad\u30b9\u30c8</p><p>as they are humane. \u2666</p>`,
+  );
+  shrinkSubstitutes(doc.body, substituted("dynamic", "reMarkable Serif Small"));
+  const spans = doc.querySelectorAll("span.repub-substitute");
+  expect(spans.length).toBe(1);
+  expect(spans[0]?.textContent).toBe("\u2666");
+});
+
+test("shrinkSubstitutes() leaves fixed-width text alone", () => {
+  const doc = parseBody(
+    `<pre>tree\n\u251c\u2500\u2500 src\n\u2514\u2500\u2500 test</pre>`,
+  );
+  shrinkSubstitutes(doc.body, substituted("dynamic", "reMarkable Serif Small"));
+  expect(doc.querySelector("span")).toBeNull();
+});
+
+test("substituteScale() ignores inherited property names", () => {
+  expect(substituteScale("dynamic", "toString")).toBeCloseTo(0.75);
+});
+
+test("shrinkSubstitutes() still shrinks a short line with a stray symbol", () => {
+  const doc = parseBody(`<li>A → B</li>`);
+  shrinkSubstitutes(doc.body, substituted("dynamic", "reMarkable Serif Small"));
+  expect(doc.querySelector("span.repub-substitute")?.textContent).toBe("→");
 });

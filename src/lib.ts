@@ -1,5 +1,6 @@
 import { alter, closeMatch, exactMatch, type MimeData } from "./alter";
 import { epub, type ImageData, type ImageMime } from "./epub";
+import { type ShrinkMode, substituteScale } from "./glyphs";
 import type { EpubOptions } from "./options";
 import { parse } from "./parse";
 
@@ -23,6 +24,14 @@ figcaption {
   font-style: italic;
 }
 `;
+
+function substituteCss(mode: ShrinkMode, fontName: string): string {
+  return `
+.repub-substitute {
+  font-size: ${substituteScale(mode, fontName)}em;
+}
+`;
+}
 
 const codeEnvironmentCss = `
 pre, code {
@@ -98,6 +107,8 @@ export async function generate(
     convertTables,
     rotateTables,
     tableResolution,
+    shrinkGlyphs,
+    fontName,
   }: EpubOptions,
   summarize: boolean,
   initTitle?: string,
@@ -139,6 +150,8 @@ export async function generate(
       rotateTables,
       tableResolution,
       tableCss: tabCss ? baseTableCss : "",
+      shrinkGlyphs,
+      fontName,
     },
     summarize,
   );
@@ -177,7 +190,7 @@ export async function generate(
     content: altered,
     author: initAuthor ?? byline,
     images: brightened,
-    css: `${rmCss ? remarkableCss : ""} ${codeCss ? codeEnvironmentCss : ""}  ${tabCss ? tableCss : ""}`,
+    css: `${rmCss ? remarkableCss : ""} ${shrinkGlyphs === "off" ? "" : substituteCss(shrinkGlyphs, fontName)} ${codeCss ? codeEnvironmentCss : ""}  ${tabCss ? tableCss : ""}`,
     href: hrefHeader ? href : undefined,
     byline: bylineHeader,
     cover: coverHeader ? cover : undefined,
