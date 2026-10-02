@@ -1,24 +1,8 @@
-import Box from "@mui/material/Box";
-import MuiFormControlLabel, {
-  type FormControlLabelProps,
-} from "@mui/material/FormControlLabel";
-import { styled } from "@mui/material/styles";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
 import { type ReactElement, useCallback } from "react";
-import Right from "./right";
-
-const FormControlLabel = styled(MuiFormControlLabel)<FormControlLabelProps>(
-  () => ({
-    // MUI has negative margins that make the layout inconsistent
-    marginLeft: "0",
-    marginRight: "0",
-    alignItems: "start",
-    gap: "0.5rem",
-  }),
-);
+import OptionRow from "./option-row";
 
 export default function ButtonSelection<T extends string>({
   value,
@@ -27,6 +11,7 @@ export default function ButtonSelection<T extends string>({
   title,
   caption,
   disabled = false,
+  collapsible,
 }: {
   value: T | undefined;
   onChange: (val: T) => void;
@@ -34,6 +19,7 @@ export default function ButtonSelection<T extends string>({
   title: string;
   caption: string;
   disabled?: boolean;
+  collapsible?: boolean;
 }): ReactElement {
   const change = useCallback(
     (_: unknown, newVal: string | null) => {
@@ -64,6 +50,7 @@ export default function ButtonSelection<T extends string>({
   const control = (
     <ToggleButtonGroup
       orientation="horizontal"
+      size="small"
       value={value ?? null}
       disabled={groupDisabled}
       exclusive
@@ -72,27 +59,13 @@ export default function ButtonSelection<T extends string>({
       {buttons}
     </ToggleButtonGroup>
   );
-  const current = selections.find((sel) => sel.val === value)?.label ?? value;
-  const label = (
-    <Box>
-      <Typography>
-        {title}
-        {current ? (
-          <Typography
-            component="span"
-            variant="caption"
-            sx={{ ml: 1, color: "text.secondary" }}
-          >
-            {current}
-          </Typography>
-        ) : null}
-      </Typography>
-      <Typography variant="caption">{caption}</Typography>
-    </Box>
-  );
+
   return (
-    <Right>
-      <FormControlLabel control={control} label={label} labelPlacement="top" />
-    </Right>
+    <OptionRow
+      title={title}
+      caption={caption}
+      control={control}
+      collapsible={collapsible}
+    />
   );
 }

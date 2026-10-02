@@ -13,7 +13,11 @@ import OutlinedInput from "@mui/material/OutlinedInput";
 import Snackbar from "@mui/material/Snackbar";
 import Stack from "@mui/material/Stack";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import TextField from "@mui/material/TextField";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { marked } from "marked";
@@ -51,6 +55,8 @@ import {
 } from "react-icons/fa6";
 import { type DeviceModel, type PutOptions, register } from "rmapi-js";
 import repubPlain from "../public/repub-plain.svg";
+import { optionCss } from "../src/css";
+import type { ShrinkMode } from "../src/glyphs";
 import { toMhtml } from "../src/mhtml";
 import {
   defaultOptions,
@@ -66,11 +72,8 @@ import { uploadEpub, uploadPdf } from "../src/upload";
 import { sleep } from "../src/utils";
 import ButtonSelection from "./button-selection";
 import CheckboxSelection from "./checkbox-selection";
-import FormControlLabel from "./form-control-label";
-import LeftRight from "./left-right";
-import RadioSelection from "./radio-selection";
-import Right from "./right";
-import Section from "./section";
+import CssEditor from "./css-editor";
+import OptionRow from "./option-row";
 
 const theme = createTheme({
   palette: {
@@ -105,34 +108,25 @@ function OutputStylePicker({
   setOpts: SetOptions;
 }): ReactElement {
   const onChange = useCallback(
-    (val: OutputStyle) => {
-      setOpts({ outputStyle: val });
+    (_: unknown, val: OutputStyle | null) => {
+      if (val !== null) {
+        setOpts({ outputStyle: val });
+      }
     },
     [setOpts],
   );
 
   return (
-    <RadioSelection
-      value={outputStyle}
+    <ToggleButtonGroup
+      value={outputStyle ?? null}
+      disabled={outputStyle === undefined}
+      exclusive
+      size="small"
       onChange={onChange}
-      selections={[
-        {
-          val: "download",
-          title: "Download article as file",
-          caption: `With this selected, the article will be converted into an
-          epub file and then downloaded. This doesn't required connecting this
-          extension to reMarkable, but doesn't allow tweaking reMarkable
-          specific upload settings.`,
-        },
-        {
-          val: "upload",
-          title: "Upload article to reMarkable",
-          caption: `With this selected, the article will be uploaded to your
-          reMarkable cloud. This allows tweaking reMarkable upload settings,
-          but requires connecting the extension to your reMarkable account.`,
-        },
-      ]}
-    />
+    >
+      <ToggleButton value="upload">Upload to reMarkable</ToggleButton>
+      <ToggleButton value="download">Download as file</ToggleButton>
+    </ToggleButtonGroup>
   );
 }
 
@@ -200,7 +194,7 @@ function FileUpload(): ReactElement {
       loading={uploading}
       loadingPosition="end"
     >
-      Upload to reMarkable
+      Upload a file
     </Button>
   );
 }
@@ -238,14 +232,12 @@ function DropOverlay({ reject }: { reject: boolean }): ReactElement {
 }
 
 function SignIn({
-  deviceToken,
   outputStyle,
   setOpts,
   showSnack,
   authHost,
   tokenUrl,
 }: {
-  deviceToken?: string;
   outputStyle?: OutputStyle;
   setOpts: SetOptions;
   showSnack: (snk: Snack) => void;
@@ -313,15 +305,7 @@ function SignIn({
       });
   }, [setOpts, showSnack, authHost]);
 
-  if (deviceToken) {
-    return (
-      <Right>
-        <Stack spacing={1}>
-          <FileUpload />
-        </Stack>
-      </Right>
-    );
-  } else if (outputStyle === "download" || outputStyle === undefined) {
+  if (outputStyle === "download" || outputStyle === undefined) {
     return null;
   } else {
     const pasteAdornment = (
@@ -344,31 +328,29 @@ function SignIn({
     );
 
     return (
-      <Right>
-        <Stack spacing={1}>
-          <Alert severity="warning">
-            If choosing to upload documents, you must link this extension to
-            your reMarkable account
-          </Alert>
-          <Link href={tokenUrl} target="_blank">
-            <Button variant="contained" fullWidth={true}>
-              Get one-time code
-            </Button>
-          </Link>
-          <Typography>
-            Click the button above to copy an eight-letter one time code
-            authorizing connection to your reMarkable account, then paste it
-            below, or click the clipboard paste icon.
-          </Typography>
-          <OutlinedInput
-            value={incCode}
-            disabled={registering}
-            onChange={changeAuth}
-            endAdornment={pasteAdornment}
-            fullWidth={true}
-          />
-        </Stack>
-      </Right>
+      <Stack spacing={1}>
+        <Alert severity="warning">
+          If choosing to upload documents, you must link this extension to your
+          reMarkable account
+        </Alert>
+        <Link href={tokenUrl} target="_blank">
+          <Button variant="contained" fullWidth={true}>
+            Get one-time code
+          </Button>
+        </Link>
+        <Typography>
+          Click the button above to copy an eight-letter one time code
+          authorizing connection to your reMarkable account, then paste it
+          below, or click the clipboard paste icon.
+        </Typography>
+        <OutlinedInput
+          value={incCode}
+          disabled={registering}
+          onChange={changeAuth}
+          endAdornment={pasteAdornment}
+          fullWidth={true}
+        />
+      </Stack>
     );
   }
 }
@@ -385,6 +367,7 @@ function SimplCheckboxSelection({
   setOpts,
   disabled,
   onChange,
+  collapsible,
 }: {
   name: BooleanKeys;
   title: string;
@@ -393,6 +376,7 @@ function SimplCheckboxSelection({
   setOpts: SetOptions;
   disabled?: boolean;
   onChange?: (val: boolean) => void;
+  collapsible?: boolean;
 }): ReactElement {
   const val = opts[name];
   const onToggle = useCallback(() => {
@@ -409,6 +393,7 @@ function SimplCheckboxSelection({
       title={title}
       caption={caption}
       disabled={disabled}
+      collapsible={collapsible}
     />
   );
 }
@@ -481,16 +466,14 @@ export function SignOut({
 
   if (deviceToken ?? true) {
     return (
-      <Right>
-        <Button
-          variant="outlined"
-          disabled={deviceToken === undefined}
-          onClick={signout}
-          fullWidth
-        >
-          Disconnect from your reMarkable account
-        </Button>
-      </Right>
+      <Button
+        variant="outlined"
+        disabled={deviceToken === undefined}
+        onClick={signout}
+        fullWidth
+      >
+        Disconnect from your reMarkable account
+      </Button>
     );
   } else {
     return null;
@@ -503,11 +486,9 @@ function close(): void {
 
 function Done(): ReactElement {
   return (
-    <Right>
-      <Button variant="contained" onClick={close} fullWidth>
-        Done
-      </Button>
-    </Right>
+    <Button variant="contained" onClick={close} fullWidth>
+      Done
+    </Button>
   );
 }
 
@@ -529,19 +510,50 @@ function SignInOptions({
   const title = <Typography variant="h4">reMarkable ePub Options</Typography>;
   return (
     <Stack spacing={2}>
-      <LeftRight label={title}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        {title}
         <img alt="repub" src={repubPlain} width={32} height={32} />
-      </LeftRight>
-      <OutputStylePicker outputStyle={outputStyle} setOpts={setOpts} />
-      <DevicePicker device={opts.device} setOpts={setOpts} />
-      <SignIn
-        deviceToken={deviceToken}
-        outputStyle={outputStyle}
-        setOpts={setOpts}
-        showSnack={showSnack}
-        authHost={authHost}
-        tokenUrl={tokenUrl}
-      />
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <OutputStylePicker outputStyle={outputStyle} setOpts={setOpts} />
+        {deviceToken ? (
+          <Box sx={{ width: "170px", marginLeft: "auto" }}>
+            <FileUpload />
+          </Box>
+        ) : null}
+      </Box>
+      {outputStyle === "download" ? (
+        <SimplCheckboxSelection
+          name="downloadAsk"
+          title="Ask for Filename"
+          caption="When downloading as a file, ask where to save each file."
+          opts={opts}
+          setOpts={setOpts}
+          collapsible={false}
+        />
+      ) : null}
+      {outputStyle === "upload" && deviceToken ? (
+        <DevicePicker
+          device={opts.device}
+          setOpts={setOpts}
+          collapsible={false}
+        />
+      ) : null}
+      {deviceToken ? null : (
+        <SignIn
+          outputStyle={outputStyle}
+          setOpts={setOpts}
+          showSnack={showSnack}
+          authHost={authHost}
+          tokenUrl={tokenUrl}
+        />
+      )}
     </Stack>
   );
 }
@@ -576,6 +588,46 @@ function ResolutionSelector({
   );
 }
 
+function ShrinkGlyphsSelector({
+  shrinkGlyphs,
+  setOpts,
+}: {
+  shrinkGlyphs: ShrinkMode | undefined;
+  setOpts: SetOptions;
+}): ReactElement {
+  return (
+    <ButtonSelection
+      value={shrinkGlyphs}
+      onChange={(val) => {
+        setOpts({ shrinkGlyphs: val });
+      }}
+      selections={[
+        {
+          val: "off",
+          icon: <FaBan />,
+          label: "Leave alone",
+        },
+        {
+          val: "dynamic",
+          icon: <FaA />,
+          label: "Fit the font",
+        },
+        {
+          val: "robust",
+          icon: <FaLock />,
+          label: "Fit any font",
+        },
+      ]}
+      title="Shrink substituted characters"
+      caption="reMarkable fonts fall back to Noto for certain characters, but
+      those have different line heights, which renders the paragraph awkwardly.
+      Shrinking them keeps the line height constant: fit the font shrinks as
+      little as the selected font needs, fit any font shrinks enough to survive
+      changing the font on the tablet."
+    />
+  );
+}
+
 function EpubOptions({
   opts,
   setOpts,
@@ -584,11 +636,7 @@ function EpubOptions({
   setOpts: SetOptions;
 }): ReactElement {
   return (
-    <Section
-      title="ePub Options"
-      subtitle="These options alter the way the epub is generated independent of
-      whether it's uploaded to reMarkable or kept as an epub"
-    >
+    <Stack>
       <ButtonSelection
         // potentially include captions next to each option
         value={opts.imageHandling}
@@ -666,51 +714,6 @@ function EpubOptions({
         setOpts={setOpts}
       />
       <SimplCheckboxSelection
-        name="rmCss"
-        title="Use reMarkable CSS"
-        caption="The default remarkable css adds some extra margins around
-        paragraphs among other changes. Select this to use it."
-        opts={opts}
-        setOpts={setOpts}
-      />
-      <ButtonSelection
-        value={opts.shrinkGlyphs}
-        onChange={(val) => {
-          setOpts({ shrinkGlyphs: val });
-        }}
-        selections={[
-          {
-            val: "off",
-            icon: <FaBan />,
-            label: "Leave alone",
-          },
-          {
-            val: "dynamic",
-            icon: <FaA />,
-            label: "Fit the font",
-          },
-          {
-            val: "robust",
-            icon: <FaLock />,
-            label: "Fit any font",
-          },
-        ]}
-        title="Shrink substituted characters"
-        caption="reMarkable fonts fall back to Noto for certain characters, but
-        those have different line heights, which renders the paragraph
-        awkwardly. Shrinking them keeps the line height constant: fit the font
-        shrinks as little as the selected font needs, fit any font shrinks
-        enough to survive changing the font on the tablet."
-      />
-      <SimplCheckboxSelection
-        name="codeCss"
-        title="Use code environment CSS"
-        caption="This renders <pre/> and <code/> tags in a wrapped fixed-width
-        font with a light gray background."
-        opts={opts}
-        setOpts={setOpts}
-      />
-      <SimplCheckboxSelection
         name="tabCss"
         title="Use table CSS"
         caption="This renders tables with some extra markup to make them more
@@ -760,6 +763,10 @@ function EpubOptions({
         setOpts={setOpts}
         disabled={opts.convertTables !== true}
       />
+      <ShrinkGlyphsSelector
+        shrinkGlyphs={opts.shrinkGlyphs}
+        setOpts={setOpts}
+      />
       <SimplCheckboxSelection
         name="promptTitle"
         title="Prompt for Title and Author"
@@ -775,31 +782,66 @@ function EpubOptions({
             });
         }}
       />
-    </Section>
+    </Stack>
   );
 }
 
-function DownloadOptions({
+function CssOptions({
   opts,
   setOpts,
 }: {
   opts: Partial<Options>;
   setOpts: SetOptions;
-}): ReactElement | null {
+}): ReactElement {
+  const generated = optionCss({
+    rmCss: !!opts.rmCss,
+    fitImages: !!opts.fitImages,
+    codeCss: !!opts.codeCss,
+    tabCss: !!opts.tabCss,
+    shrinkGlyphs: opts.shrinkGlyphs ?? "off",
+    fontName: opts.fontName ?? "",
+  });
+  const setCustom = useCallback(
+    (customCss: string) => {
+      setOpts({ customCss });
+    },
+    [setOpts],
+  );
   return (
-    <Section
-      title="Download Options"
-      subtitle="These are options that are only relevant if you're downloading
-      articles as files."
-    >
+    <Stack>
       <SimplCheckboxSelection
-        name="downloadAsk"
-        title="Ask for Filename"
-        caption="When downloading as a file, ask where to save each file."
+        name="rmCss"
+        title="Use reMarkable CSS"
+        caption="The default remarkable css adds some extra margins around
+        paragraphs among other changes. Select this to use it."
         opts={opts}
         setOpts={setOpts}
       />
-    </Section>
+      <SimplCheckboxSelection
+        name="fitImages"
+        title="Fit images to page"
+        caption="Add a rule that shrinks wide images to the page width and
+        keeps their shape. reMarkable ignores it, but other readers honor it."
+        opts={opts}
+        setOpts={setOpts}
+      />
+      <SimplCheckboxSelection
+        name="codeCss"
+        title="Use code environment CSS"
+        caption="This renders <pre/> and <code/> tags in a wrapped fixed-width
+        font with a light gray background."
+        opts={opts}
+        setOpts={setOpts}
+      />
+      <Box sx={{ pt: 2, pb: 1 }}>
+        <Typography>Custom CSS</Typography>
+      </Box>
+      <CssEditor
+        generated={generated}
+        value={opts.customCss}
+        onChange={setCustom}
+      />
+    </Stack>
   );
 }
 
@@ -1127,31 +1169,20 @@ function TagsSelector({
   const control = (
     <TextField
       variant="standard"
-      fullWidth
       value={tags ?? ""}
       onChange={(evt) => {
         setOpts({ tags: evt.target.value });
       }}
       disabled={disabled}
+      sx={{ width: "260px" }}
     />
   );
-  const label = (
-    <Box>
-      <Typography>Tags</Typography>
-      <Typography variant="caption">
-        Comma separated list of tags to apply to uploaded documents
-      </Typography>
-    </Box>
-  );
   return (
-    <Right>
-      <FormControlLabel
-        control={control}
-        label={label}
-        labelPlacement="top"
-        slotProps={{ typography: { sx: { width: "100%" } } }}
-      />
-    </Right>
+    <OptionRow
+      title="Tags"
+      caption="Comma separated list of tags to apply to uploaded documents"
+      control={control}
+    />
   );
 }
 
@@ -1177,9 +1208,11 @@ function DeviceIcon({
 function DevicePicker({
   device,
   setOpts,
+  collapsible,
 }: {
   device: DeviceModel | undefined;
   setOpts: SetOptions;
+  collapsible?: boolean;
 }): ReactElement {
   return (
     <ButtonSelection
@@ -1205,9 +1238,10 @@ function DevicePicker({
         },
       ]}
       title="reMarkable Model"
-      caption="Which reMarkable you read on. This sets the paper sizes offered
-      when printing to reMarkable, and the screen that trimming PDF margins
-      fits the content to."
+      caption="Which reMarkable you read on. Everything else here is fitted to
+      this screen, and it sets the paper sizes offered when printing to
+      reMarkable."
+      collapsible={collapsible}
     />
   );
 }
@@ -1218,15 +1252,11 @@ function UploadOptions({
 }: {
   opts: Partial<Options>;
   setOpts: SetOptions;
-}): ReactElement | null {
+}): ReactElement {
   return (
-    <Section
-      title="Upload Options"
-      subtitle="These are options that control how the ePub is rendered on the
-      reMarkable when uploading. Only the font name also reaches the file
-      itself, since shrinking substituted characters depends on it."
-    >
+    <Stack>
       <MarginSelector margins={opts.margins} setOpts={setOpts} />
+      <FontNameSelector fontName={opts.fontName} setOpts={setOpts} />
       <TextScaleSelector textScale={opts.textScale} setOpts={setOpts} />
       <LineHeightSelector lineHeight={opts.lineHeight} setOpts={setOpts} />
       <TextAlignmentSelector
@@ -1237,8 +1267,6 @@ function UploadOptions({
         viewBackgroundFilter={opts.viewBackgroundFilter}
         setOpts={setOpts}
       />
-      <FontNameSelector fontName={opts.fontName} setOpts={setOpts} />
-      <TagsSelector tags={opts.tags} setOpts={setOpts} />
       <CoverPageNumberSelector
         coverPageNumber={opts.coverPageNumber}
         setOpts={setOpts}
@@ -1253,7 +1281,8 @@ function UploadOptions({
         document-wide fit to any PDF you upload or print, and doesn't alter the
         file itself."
       />
-    </Section>
+      <TagsSelector tags={opts.tags} setOpts={setOpts} />
+    </Stack>
   );
 }
 
@@ -1309,21 +1338,7 @@ function UrlField({
       }
     />
   );
-  const header = (
-    <Box>
-      <Typography>{label}</Typography>
-    </Box>
-  );
-  return (
-    <Right>
-      <FormControlLabel
-        control={control}
-        label={header}
-        labelPlacement="top"
-        slotProps={{ typography: { sx: { width: "100%" } } }}
-      />
-    </Right>
-  );
+  return <OptionRow title={label} control={control} />;
 }
 
 function ApiUrlsSection({
@@ -1429,10 +1444,11 @@ function ApiUrlsSection({
   }, [opts, showSnack]);
 
   return (
-    <Section
-      title="Advanced"
-      subtitle="Only change these if you know what you're doing. Custom API URLs are for self-hosted or alternate reMarkable backends."
-    >
+    <Stack>
+      <Typography variant="caption" sx={{ pb: 2 }}>
+        Only change these if you know what you're doing. Custom API URLs are for
+        self-hosted or alternate reMarkable backends.
+      </Typography>
       {[...apiUrlFields.entries()].map(([key, label]) => (
         <UrlField
           key={key}
@@ -1450,13 +1466,13 @@ function ApiUrlsSection({
         />
       ))}
       {needsGrant && (
-        <Right>
+        <Box sx={{ pt: 2 }}>
           <Button variant="contained" onClick={grantPermissions}>
             Grant Host Permissions
           </Button>
-        </Right>
+        </Box>
       )}
-    </Section>
+    </Stack>
   );
 }
 
@@ -1466,7 +1482,17 @@ interface Snack {
   message: string;
 }
 
+const groupNames = ["ePub", "CSS", "Upload", "Advanced"] as const;
+
 export default function OptionsPage(): ReactElement {
+  const [tab, setTab] = useState<(typeof groupNames)[number]>(groupNames[0]);
+  const changeTab = useCallback(
+    (_: unknown, val: (typeof groupNames)[number]) => {
+      setTab(val);
+    },
+    [],
+  );
+
   // snack bar
   const [open, setOpen] = useState(false);
   const [snack, setSnack] = useState<Snack>({
@@ -1592,22 +1618,34 @@ export default function OptionsPage(): ReactElement {
           >
             <Stack sx={{ justifyContent: "space-between", minHeight: "100vh" }}>
               <Container maxWidth="sm" sx={{ padding: 4 }}>
-                <Stack spacing={4}>
+                <Stack spacing={3}>
                   <SignInOptions
                     opts={opts}
                     setOpts={setOpts}
                     showSnack={showSnack}
                   />
-                  <Box>
+                  <Tabs
+                    value={tab}
+                    onChange={changeTab}
+                    sx={{ borderBottom: "1px solid", borderColor: "divider" }}
+                  >
+                    {groupNames.map((name) => (
+                      <Tab key={name} label={name} value={name} />
+                    ))}
+                  </Tabs>
+                  {tab === "ePub" ? (
                     <EpubOptions opts={opts} setOpts={setOpts} />
-                    <DownloadOptions opts={opts} setOpts={setOpts} />
+                  ) : tab === "CSS" ? (
+                    <CssOptions opts={opts} setOpts={setOpts} />
+                  ) : tab === "Upload" ? (
                     <UploadOptions opts={opts} setOpts={setOpts} />
+                  ) : (
                     <ApiUrlsSection
                       opts={opts}
                       setOpts={setOpts}
                       showSnack={showSnack}
                     />
-                  </Box>
+                  )}
                   <Done />
                 </Stack>
               </Container>

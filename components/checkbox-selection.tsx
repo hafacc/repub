@@ -1,8 +1,6 @@
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
 import type { ReactElement } from "react";
 import Checkball from "./checkball";
-import FormControlLabel from "./form-control-label";
+import OptionRow from "./option-row";
 
 export default function CheckboxSelection({
   value,
@@ -10,12 +8,14 @@ export default function CheckboxSelection({
   title,
   caption,
   disabled = false,
+  collapsible,
 }: {
   value: boolean | undefined;
   onToggle: () => void;
   title: string;
   caption: string;
   disabled?: boolean;
+  collapsible?: boolean;
 }): ReactElement {
   const checkbox = (
     <Checkball
@@ -24,11 +24,12 @@ export default function CheckboxSelection({
       onClick={onToggle}
     />
   );
-  const label = (
-    <Box>
-      <Typography>{title}</Typography>
-      <Typography variant="caption">{caption}</Typography>
-    </Box>
+  return (
+    <OptionRow
+      title={title}
+      caption={caption}
+      control={checkbox}
+      collapsible={collapsible}
+    />
   );
-  return <FormControlLabel control={checkbox} label={label} />;
 }

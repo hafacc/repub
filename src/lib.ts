@@ -1,79 +1,8 @@
 import { alter, closeMatch, exactMatch, type MimeData } from "./alter";
+import { baseTableCss, epubCss } from "./css";
 import { epub, type ImageData, type ImageMime } from "./epub";
-import { type ShrinkMode, substituteScale } from "./glyphs";
 import type { EpubOptions } from "./options";
 import { parse } from "./parse";
-
-const remarkableCss = `
-p {
-  margin-top: 1em;
-  margin-bottom: 1em;
-}
-
-ul, ol {
-  padding: 1em;
-}
-
-ul li, ol li {
-  margin-left: 1.5em;
-  padding-left: 0.5em;
-}
-
-figcaption {
-  font-size: 0.5rem;
-  font-style: italic;
-}
-`;
-
-function substituteCss(mode: ShrinkMode, fontName: string): string {
-  return `
-.repub-substitute {
-  font-size: ${substituteScale(mode, fontName)}em;
-}
-`;
-}
-
-const codeEnvironmentCss = `
-pre, code {
-  font-family: "Noto Mono", monospace;
-  font-size: 0.8em;
-  background-color: #f2f2f2;
-}
-
-pre {
-  white-space: pre-wrap;
-  /* this doesn't work, but it might as some point */
-  text-align: left !important;
-}
-`;
-
-const baseTableCss = `
-table, th, td {
-  border: 1px solid;
-}
-
-th {
-  border-top: 3px solid;
-  border-bottom: 3px solid;
-}
-
-th, td {
-  padding: 0.25rem;
-}
-
-table {
-  border-bottom: 3px solid;
-  border-collapse: collapse;
-}
-`;
-
-const tableCss = `
-${baseTableCss}
-
-table {
-  max-width: 100%;
-}
-`;
 
 type Brighten = (
   buffer: Uint8Array,
@@ -92,14 +21,17 @@ interface Result {
 export async function generate(
   mhtml: Uint8Array,
   brighten: Brighten,
-  {
+  options: EpubOptions,
+  summarize: boolean,
+  initTitle?: string,
+  initAuthor?: string,
+): Promise<Result> {
+  const {
     imageHrefSimilarityThreshold,
     imageHandling,
     filterLinks,
     filterIframes,
     authorByline,
-    rmCss,
-    codeCss,
     tabCss,
     hrefHeader,
     bylineHeader,
@@ -109,11 +41,7 @@ export async function generate(
     tableResolution,
     shrinkGlyphs,
     fontName,
-  }: EpubOptions,
-  summarize: boolean,
-  initTitle?: string,
-  initAuthor?: string,
-): Promise<Result> {
+  } = options;
   const { href, content, assets } = await parse(mhtml);
   const parser = new DOMParser();
   const doc = parser.parseFromString(content, "text/html");
@@ -190,7 +118,7 @@ export async function generate(
     content: altered,
     author: initAuthor ?? byline,
     images: brightened,
-    css: `${rmCss ? remarkableCss : ""} ${shrinkGlyphs === "off" ? "" : substituteCss(shrinkGlyphs, fontName)} ${codeCss ? codeEnvironmentCss : ""}  ${tabCss ? tableCss : ""}`,
+    css: epubCss(options),
     href: hrefHeader ? href : undefined,
     byline: bylineHeader,
     cover: coverHeader ? cover : undefined,
