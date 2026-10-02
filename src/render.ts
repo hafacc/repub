@@ -1,5 +1,12 @@
 import { fromByteArray, toByteArray } from "base64-js";
-import type { InitMessage, PartMessage, Response } from "./messages";
+import type { DeviceModel, PutOptions } from "rmapi-js";
+import type {
+  InitMessage,
+  Message,
+  PartMessage,
+  Response,
+  TrimMessage,
+} from "./messages";
 import type { EpubOptions } from "./options";
 
 const MAX_CHUNK_SIZE = 50_000_000;
@@ -12,14 +19,58 @@ async function ensureOffscreen(): Promise<void> {
     if (!(await chrome.offscreen.hasDocument())) {
       await chrome.offscreen.createDocument({
         url: "/offscreen.html",
-        reasons: [chrome.offscreen.Reason.DOM_PARSER],
-        justification: "Parse DOM",
+        reasons: [
+          chrome.offscreen.Reason.DOM_PARSER,
+          // pdf.js renders pages in a worker, which a service worker can't start
+          chrome.offscreen.Reason.WORKERS,
+        ],
+        justification: "Parse DOM and rasterize pdf pages",
       });
     }
   })().finally(() => {
     ensuring = null;
   });
   await ensuring;
+}
+
+/**
+ * send a payload to the offscreen document and collect its reply
+ *
+ * The payload is base64'd and chunked because a single message can't carry an
+ * arbitrarily large buffer. `receive` resolves once it has everything it needs.
+ */
+async function exchange<T>(
+  init: (numParts: number) => Message,
+  payload: Uint8Array,
+  receive: (message: Response, resolve: (value: T) => void) => void,
+): Promise<T> {
+  await ensureOffscreen();
+
+  const encoded = fromByteArray(payload);
+  const chunks: string[] = [];
+  for (let start = 0; start < encoded.length; start += MAX_CHUNK_SIZE) {
+    chunks.push(encoded.slice(start, start + MAX_CHUNK_SIZE));
+  }
+
+  return await new Promise<T>((resolve, reject) => {
+    const port = chrome.runtime.connect();
+    port.onDisconnect.addListener(() => {
+      reject(Error("port disconnected early"));
+    });
+    port.onMessage.addListener((message: Response) => {
+      if (message.type === "error") {
+        reject(Error(message.err));
+      } else {
+        receive(message, resolve);
+      }
+    });
+
+    port.postMessage(init(chunks.length));
+    for (const [index, part] of chunks.entries()) {
+      const partMessage: PartMessage = { type: "part", index, part };
+      port.postMessage(partMessage);
+    }
+  });
 }
 
 export async function render(
@@ -29,61 +80,49 @@ export async function render(
   author?: string,
   summarize: boolean = true,
 ): Promise<{ epub: Uint8Array; title?: string }> {
-  await ensureOffscreen();
+  const parts: string[] = [];
+  let receivedParts = 0;
+  let expectedParts: number | undefined;
+  let parsedTitle: string | undefined;
 
-  // chunk encoded in case it's too large
-  const encoded = fromByteArray(new Uint8Array(mhtml));
-  const chunks: string[] = [];
-  for (let start = 0; start < encoded.length; start += MAX_CHUNK_SIZE) {
-    chunks.push(encoded.slice(start, start + MAX_CHUNK_SIZE));
-  }
-  const initMessage: InitMessage = {
-    type: "info",
-    numParts: chunks.length,
-    options: opts,
-    title,
-    author,
-    summarize,
-  };
-
-  const { parts, title: parsedTitle } = await new Promise<{
-    parts: string[];
-    title?: string;
-  }>((resolve, reject) => {
-    const parts: string[] = [];
-    let receivedParts = 0;
-    let expectedParts: number | undefined;
-    let title: string | undefined;
-
-    const port = chrome.runtime.connect();
-    port.onDisconnect.addListener(() => {
-      reject(Error("port disconnected early"));
-    });
-    port.onMessage.addListener((message: Response) => {
+  const collected = await exchange<string[]>(
+    (numParts): InitMessage => ({
+      type: "info",
+      numParts,
+      options: opts,
+      title,
+      author,
+      summarize,
+    }),
+    new Uint8Array(mhtml),
+    (message, resolve) => {
       if (message.type === "part") {
         parts[message.index] = message.part;
         receivedParts++;
       } else if (message.type === "info") {
         expectedParts = message.numParts;
-        title = message.title;
-      } else {
-        reject(Error(message.err));
+        parsedTitle = message.title;
       }
       if (expectedParts === receivedParts) {
-        resolve({ parts, title });
+        resolve(parts);
       }
-    });
+    },
+  );
+  return { epub: toByteArray(collected.join("")), title: parsedTitle };
+}
 
-    // post all parts
-    port.postMessage(initMessage);
-    for (const [index, part] of chunks.entries()) {
-      const partMessage: PartMessage = {
-        type: "part",
-        index,
-        part,
-      };
-      port.postMessage(partMessage);
-    }
-  });
-  return { epub: toByteArray(parts.join("")), title: parsedTitle };
+/** measure a pdf's margins for `device`, returning the zoom that hides them */
+export async function measureMargins(
+  pdf: Uint8Array,
+  device: DeviceModel,
+): Promise<Partial<PutOptions>> {
+  return await exchange<Partial<PutOptions>>(
+    (numParts): TrimMessage => ({ type: "trim", numParts, device }),
+    pdf,
+    (message, resolve) => {
+      if (message.type === "trim") {
+        resolve(message.zoom);
+      }
+    },
+  );
 }

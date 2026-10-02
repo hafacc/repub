@@ -1,3 +1,4 @@
+import type { DeviceModel, PutOptions } from "rmapi-js";
 import type { EpubOptions } from "./options";
 
 // NOTE in order to pass messages we need to convert ArrayBuffers to strings.
@@ -17,6 +18,13 @@ export interface InitMessage {
   summarize: boolean;
 }
 
+/** analyze a pdf's margins for the given device */
+export interface TrimMessage {
+  type: "trim";
+  numParts: number;
+  device: DeviceModel;
+}
+
 export interface InitResponse {
   type: "info";
   numParts: number;
@@ -29,14 +37,19 @@ export interface PartMessage {
   part: string;
 }
 
+export interface TrimResponse {
+  type: "trim";
+  zoom: Partial<PutOptions>;
+}
+
 export interface ErrorMessage {
   type: "error";
   err: string;
 }
 
-export type Message = InitMessage | PartMessage;
+export type Message = InitMessage | TrimMessage | PartMessage;
 
-export type Response = InitResponse | PartMessage | ErrorMessage;
+export type Response = InitResponse | TrimResponse | PartMessage | ErrorMessage;
 
 export interface TitleRequest {
   tabId: number;
