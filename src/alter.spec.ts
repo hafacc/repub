@@ -3,6 +3,7 @@ import { JSDOM } from "jsdom";
 import {
   closeMatch,
   coverUrls,
+  dropAltCaptions,
   exactMatch,
   type MimeData,
   parseSrcset,
@@ -164,4 +165,39 @@ test("closeMatch() picks the nearest asset within the threshold", () => {
   expect(
     closeMatch(assets, 0.01)(["https://ex.com/photo.png?w=100"]),
   ).toBeUndefined();
+});
+
+test("dropAltCaptions() removes a caption that only repeats the alt text", () => {
+  const doc = parseBody(
+    `<figure><img src="chart.png" alt="A bar chart" /><figcaption>A bar chart</figcaption></figure>`,
+  );
+  dropAltCaptions(doc.body);
+  expect(doc.querySelector("figcaption")).toBeNull();
+  expect(doc.querySelector("img")?.alt).toBe("A bar chart");
+});
+
+test("dropAltCaptions() ignores whitespace differences", () => {
+  const doc = parseBody(
+    `<figure><img src="chart.png" alt="A bar\nchart" /><figcaption>  A bar chart </figcaption></figure>`,
+  );
+  dropAltCaptions(doc.body);
+  expect(doc.querySelector("figcaption")).toBeNull();
+});
+
+test("dropAltCaptions() keeps a caption that says something else", () => {
+  const doc = parseBody(
+    `<figure><img src="chart.png" alt="A bar chart" /><figcaption>Figure 1. Deficits by year.</figcaption></figure>`,
+  );
+  dropAltCaptions(doc.body);
+  expect(doc.querySelector("figcaption")?.textContent).toBe(
+    "Figure 1. Deficits by year.",
+  );
+});
+
+test("dropAltCaptions() keeps captions on images without alt text", () => {
+  const doc = parseBody(
+    `<figure><img src="chart.png" /><figcaption>A bar chart</figcaption></figure>`,
+  );
+  dropAltCaptions(doc.body);
+  expect(doc.querySelector("figcaption")?.textContent).toBe("A bar chart");
 });

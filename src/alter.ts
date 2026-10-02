@@ -375,6 +375,21 @@ export function unwrapLinks(doc: Document, filterLinks: boolean): void {
   }
 }
 
+function collapsed(text: string | null): string {
+  return (text ?? "").replace(/\s+/g, " ").trim();
+}
+
+/** drop captions defuddle invents from an image's alt text */
+export function dropAltCaptions(content: HTMLElement): void {
+  for (const figure of content.querySelectorAll("figure")) {
+    const caption = figure.querySelector(":scope > figcaption");
+    const alt = figure.querySelector<HTMLImageElement>(":scope > img")?.alt;
+    if (caption && alt && collapsed(alt) === collapsed(caption.textContent)) {
+      caption.remove();
+    }
+  }
+}
+
 /** extract the main content of a document as a detached element */
 function summarizeDoc(
   doc: Document,
@@ -384,8 +399,10 @@ function summarizeDoc(
   unwrapLinks(doc, filterLinks);
   const { content, title, author } = new Defuddle(doc, { url }).parse();
   const parser = new DOMParser();
+  const body = parser.parseFromString(content, "text/html").body;
+  dropAltCaptions(body);
   return {
-    content: parser.parseFromString(content, "text/html").body,
+    content: body,
     title: title || undefined,
     byline: author || undefined,
   };
