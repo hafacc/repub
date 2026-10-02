@@ -103,6 +103,21 @@ global.Image = dom.window["Image"] as typeof Image;
       type: "boolean",
       default: defaultOptions.rmCss,
     })
+    .option("font-name", {
+      describe: "the tablet font to render for, which decides what it can draw",
+      choices: [
+        "",
+        "reMarkable Serif Small",
+        "reMarkable Sans",
+        "EB Garamond",
+      ] as const,
+      default: defaultOptions.fontName,
+    })
+    .option("shrink-glyphs", {
+      describe: "shrink characters the tablet's font can't draw",
+      choices: ["off", "dynamic", "robust"] as const,
+      default: defaultOptions.shrinkGlyphs,
+    })
     .option("code-css", {
       describe: "use code css",
       type: "boolean",
@@ -155,6 +170,8 @@ global.Image = dom.window["Image"] as typeof Image;
       filterLinks: args.filterLinks,
       filterIframes: args.filterIframes,
       rmCss: args.rmCss,
+      shrinkGlyphs: args.shrinkGlyphs,
+      fontName: args.fontName,
       codeCss: args.codeCss,
       tabCss: args.tabCss,
       hrefHeader: args.hrefHeader,
