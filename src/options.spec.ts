@@ -53,3 +53,18 @@ test("basic", async () => {
 test("default font name", () => {
   expect(defaultOptions.fontName).toBe("reMarkable Serif Small");
 });
+
+test("old trim device carries over", async () => {
+  const storage = new MapStorage();
+  storage.set({ pdfTrimDevice: "RM02A" });
+
+  const opts = await getOptions({ storage });
+  expect(opts.device).toBe("RM02A");
+  expect(opts.trimPdf).toBe(true);
+
+  // the old key is gone, so changing the device sticks
+  await setOptions({ device: "RM110" }, { storage });
+  const newOpts = await getOptions({ storage });
+  expect(newOpts.device).toBe("RM110");
+  expect(newOpts.trimPdf).toBe(true);
+});

@@ -12,8 +12,8 @@
     "fmt": "biome format --write",
     "lint": "tsc && biome check",
     "export:images": "mkdir -p images && <<< $'16\n32\n48\n128' xargs -I@ rsvg-convert -w @ -h @ public/repub.svg -o images/repub_@.png",
-    "export:bundle": "bun build src/background.ts src/offscreen.ts src/popup.ts --outdir . --sourcemap=linked && bun build ./options.html --outdir out --sourcemap=linked --chunk-naming \"[name].[ext]\" --asset-naming \"[name].[ext]\" && bun build src/pdf.worker.ts --outdir out --sourcemap=linked",
-    "export:pack": "zip -r --filesync repub.zip background.js background.js.map images/*.png manifest.json offscreen.html popup.html popup.js popup.js.map offscreen.js offscreen.js.map out",
+    "export:bundle": "bun build src/background.ts src/popup.ts --outdir . --sourcemap=linked && bun build ./options.html --outdir out --sourcemap=linked --chunk-naming \"[name].[ext]\" --asset-naming \"[name].[ext]\" && bun build src/offscreen.ts src/pdf.worker.ts --outdir out --sourcemap=linked",
+    "export:pack": "zip -r --filesync repub.zip background.js background.js.map images/*.png manifest.json offscreen.html popup.html popup.js popup.js.map out",
     "export": "bun export:images && bun export:bundle && bun export:pack",
     "pack": "bun lint && bun test --coverage && bun export && publint"
   },

@@ -13,9 +13,10 @@ files. It also offers more configuration options over the original extension —
 margins, text scale, line height, alignment, fonts, tags, and a cover page —
 available from the extension's options page.
 
-However this doesn't replicate the printer adapter, so if you want to upload
-PDFs it still recommended to keep the Read on reMarkable extension for those
-uploads.
+It also registers itself as a printer, so anything you can print in Chrome can
+be sent to your reMarkable as a PDF, from the print dialog. The printer only
+shows up once the extension is connected to your account, and the paper sizes
+it offers are the reMarkable screens, so pages arrive without extra borders.
 
 ## Firefox
 

@@ -145,9 +145,9 @@ async function uploadFile(deviceToken: string, file: File): Promise<void> {
   } else if (file.type === "application/pdf") {
     const pdf = new Uint8Array(buff);
     let zoom: Partial<PutOptions> = {};
-    if (opts.pdfTrimDevice) {
+    if (opts.trimPdf) {
       try {
-        zoom = await analyzePdfMargins(pdf, opts.pdfTrimDevice);
+        zoom = await analyzePdfMargins(pdf, opts.device);
       } catch (ex) {
         console.error("failed to analyze pdf margins", ex);
       }
@@ -533,6 +533,7 @@ function SignInOptions({
         <img alt="repub" src={repubPlain} width={32} height={32} />
       </LeftRight>
       <OutputStylePicker outputStyle={outputStyle} setOpts={setOpts} />
+      <DevicePicker device={opts.device} setOpts={setOpts} />
       <SignIn
         deviceToken={deviceToken}
         outputStyle={outputStyle}
@@ -1173,21 +1174,20 @@ function DeviceIcon({
   );
 }
 
-function PdfTrimSelector({
-  pdfTrimDevice,
+function DevicePicker({
+  device,
   setOpts,
 }: {
-  pdfTrimDevice: DeviceModel | null | undefined;
+  device: DeviceModel | undefined;
   setOpts: SetOptions;
 }): ReactElement {
   return (
     <ButtonSelection
-      value={pdfTrimDevice ?? "off"}
+      value={device}
       onChange={(val) => {
-        setOpts({ pdfTrimDevice: val === "off" ? null : val });
+        setOpts({ device: val });
       }}
       selections={[
-        { val: "off", icon: <FaBan />, label: "Off" },
         {
           val: "RM110",
           icon: <DeviceIcon width={15} height={20} />,
@@ -1204,11 +1204,10 @@ function PdfTrimSelector({
           label: "Paper Pro Move",
         },
       ]}
-      title="Trim PDF Margins"
-      caption="Crop predominantly white margins from uploaded PDFs and zoom the
-      content to fill the selected reMarkable's screen (reMarkable, Paper Pro, or
-      Paper Pro Move). Best for academic papers like arXiv. Applies one
-      document-wide fit and only affects uploaded PDFs."
+      title="reMarkable Model"
+      caption="Which reMarkable you read on. This sets the paper sizes offered
+      when printing to reMarkable, and the screen that trimming PDF margins
+      fits the content to."
     />
   );
 }
@@ -1244,7 +1243,16 @@ function UploadOptions({
         coverPageNumber={opts.coverPageNumber}
         setOpts={setOpts}
       />
-      <PdfTrimSelector pdfTrimDevice={opts.pdfTrimDevice} setOpts={setOpts} />
+      <SimplCheckboxSelection
+        name="trimPdf"
+        opts={opts}
+        setOpts={setOpts}
+        title="Trim PDF Margins"
+        caption="Zoom PDFs past their predominantly white margins so the content
+        fills your reMarkable's screen, best for academic papers. Applies one
+        document-wide fit to any PDF you upload or print, and doesn't alter the
+        file itself."
+      />
     </Section>
   );
 }

@@ -8,6 +8,7 @@
     "storage",
     "notifications",
     "pageCapture",
+    "printerProvider",
     "offscreen",
     "webNavigation"
   ],
