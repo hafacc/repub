@@ -2,7 +2,7 @@
   "name": "repub",
   "private": true,
   "version": "0.0.0",
-  "repository": "git@github.com:hafaio/repub.git",
+  "repository": "git@github.com:hafacc/repub.git",
   "author": "Erik Brinkman <erik.brinkman@gmail.com>",
   "license": "MIT",
   "type": "module",
