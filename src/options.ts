@@ -1,4 +1,5 @@
 import type { DeviceModel } from "rmapi-js";
+import type { ShrinkMode } from "./glyphs";
 
 type Awaitable<T> = T | Promise<T>;
 
@@ -38,8 +39,13 @@ export type ImageHandling = "strip" | "filter" | "keep";
 export type Orientation = "portrait" | "landscape";
 export type Cover = "first" | "visited";
 
+/** the tablet font, which both the epub and the upload need to know */
+interface FontOption {
+  fontName: string;
+}
+
 /** how we generate the epub */
-export interface EpubOptions {
+export interface EpubOptions extends FontOption {
   imageHandling: ImageHandling;
   imageBrightness: number;
   imageShrink: boolean;
@@ -56,11 +62,11 @@ export interface EpubOptions {
   convertTables: boolean;
   rotateTables: boolean;
   tableResolution: number;
+  shrinkGlyphs: ShrinkMode;
 }
 
-export interface UploadOptions {
+export interface UploadOptions extends FontOption {
   coverPageNumber: number;
-  fontName: string;
   margins: number;
   textScale: number;
   lineHeight: number;
@@ -112,6 +118,7 @@ export const defaultOptions: Options = {
   convertTables: false,
   rotateTables: false,
   tableResolution: 1,
+  shrinkGlyphs: "off",
   // ------ //
   // Upload //
   // ------ //

@@ -1,6 +1,7 @@
 import Defuddle from "defuddle";
 import leven from "leven";
 import type { ImageMime } from "./epub";
+import { type ShrinkMode, substituted } from "./glyphs";
 import type { ImageHandling } from "./options";
 
 /** a generic "file" */
@@ -112,6 +113,9 @@ interface Options extends WalkOptions {
   authorByline: boolean;
   // the document's original url, used to resolve relative hrefs
   url: string;
+  shrinkGlyphs: ShrinkMode;
+  // the tablet font we're rendering for, which decides what it can draw
+  fontName: string;
 }
 
 class Walker {
@@ -390,6 +394,126 @@ export function dropAltCaptions(content: HTMLElement): void {
   }
 }
 
+/** group adjacent characters that the tablet treats the same way */
+function* runs(
+  text: string,
+  substituted: (char: string) => boolean,
+): IterableIterator<[string, boolean]> {
+  let run = "";
+  let subbed = false;
+  for (const char of text) {
+    const sub = substituted(char);
+    if (run && sub !== subbed) {
+      yield [run, subbed];
+      run = "";
+    }
+    run += char;
+    subbed = sub;
+  }
+  if (run) {
+    yield [run, subbed];
+  }
+}
+
+const blockTags = new Set([
+  "BLOCKQUOTE",
+  "DD",
+  "DIV",
+  "DT",
+  "FIGCAPTION",
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "H6",
+  "LI",
+  "P",
+  "PRE",
+  "TD",
+  "TH",
+]);
+
+// where the substitute is more the block's font than an intruder in it, as in
+// a paragraph of a script the font doesn't have, its spacing is already even
+// and shrinking would only make the block small
+const MAX_SUBSTITUTED = 0.5;
+
+function block(text: Text, root: HTMLElement): Element {
+  let elem = text.parentElement;
+  while (elem && elem !== root && !blockTags.has(elem.tagName)) {
+    elem = elem.parentElement;
+  }
+  return elem ?? root;
+}
+
+/**
+ * shrink characters the tablet's font can't draw
+ *
+ * The substitute font it reaches for is tall enough that one character adds a
+ * quarter to the line spacing of every line in its paragraph. The size that
+ * undoes that depends on the font, so the span only gets a class here and
+ * {@link substituteScale} sets the size.
+ */
+export function shrinkSubstitutes(
+  content: HTMLElement,
+  substituted: (char: string) => boolean,
+): void {
+  const doc = content.ownerDocument;
+  const texts = new Map<Element, Text[]>();
+  const walker = doc.createTreeWalker(content, 0x4 /* NodeFilter.SHOW_TEXT */);
+  while (walker.nextNode()) {
+    const text = walker.currentNode as Text;
+    // fixed-width text lines up column by column, so leave it at one size
+    if (text.parentElement?.closest("pre, code")) {
+      continue;
+    }
+    const parent = block(text, content);
+    const group = texts.get(parent);
+    if (group) {
+      group.push(text);
+    } else {
+      texts.set(parent, [text]);
+    }
+  }
+
+  for (const group of texts.values()) {
+    const split = group.map((text) => [...runs(text.data, substituted)]);
+    let subbed = 0;
+    let total = 0;
+    for (const runList of split) {
+      for (const [run, sub] of runList) {
+        const chars = [...run].filter((char) => !!char.trim()).length;
+        total += chars;
+        if (sub) {
+          subbed += chars;
+        }
+      }
+    }
+    if (!subbed || subbed > total * MAX_SUBSTITUTED) {
+      continue;
+    }
+    for (const [index, text] of group.entries()) {
+      const runList = split[index]!;
+      if (!runList.some(([, sub]) => sub)) {
+        continue;
+      }
+      const frag = doc.createDocumentFragment();
+      for (const [run, sub] of runList) {
+        if (sub) {
+          const span = doc.createElement("span");
+          span.className = "repub-substitute";
+          span.textContent = run;
+          frag.append(span);
+        } else {
+          frag.append(doc.createTextNode(run));
+        }
+      }
+      text.replaceWith(frag);
+    }
+  }
+}
+
 /** extract the main content of a document as a detached element */
 function summarizeDoc(
   doc: Document,
@@ -443,7 +567,7 @@ export function resolveByline(
 export async function alter(
   doc: Document,
   match: UrlMatcher,
-  { authorByline, url, ...opts }: Options,
+  { authorByline, url, shrinkGlyphs, fontName, ...opts }: Options,
   summarize: boolean = true,
 ): Promise<Altered> {
   const [cover] = match(coverUrls(doc)) ?? [];
@@ -469,6 +593,10 @@ export async function alter(
   }
   for (const [url, data] of pngs) {
     images.push([url, data, "image/png"]);
+  }
+
+  if (shrinkGlyphs !== "off") {
+    shrinkSubstitutes(content, substituted(shrinkGlyphs, fontName));
   }
 
   const serial = new XMLSerializer();

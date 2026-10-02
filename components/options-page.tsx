@@ -35,6 +35,7 @@ import {
   FaBars,
   FaCheck,
   FaEquals,
+  FaLock,
   FaQuestion,
   FaRegFile,
   FaRegFileImage,
@@ -671,6 +672,35 @@ function EpubOptions({
         opts={opts}
         setOpts={setOpts}
       />
+      <ButtonSelection
+        value={opts.shrinkGlyphs}
+        onChange={(val) => {
+          setOpts({ shrinkGlyphs: val });
+        }}
+        selections={[
+          {
+            val: "off",
+            icon: <FaBan />,
+            label: "Leave alone",
+          },
+          {
+            val: "dynamic",
+            icon: <FaA />,
+            label: "Fit the font",
+          },
+          {
+            val: "robust",
+            icon: <FaLock />,
+            label: "Fit any font",
+          },
+        ]}
+        title="Shrink substituted characters"
+        caption="reMarkable fonts fall back to Noto for certain characters, but
+        those have different line heights, which renders the paragraph
+        awkwardly. Shrinking them keeps the line height constant: fit the font
+        shrinks as little as the selected font needs, fit any font shrinks
+        enough to survive changing the font on the tablet."
+      />
       <SimplCheckboxSelection
         name="codeCss"
         title="Use code environment CSS"
@@ -1194,7 +1224,8 @@ function UploadOptions({
     <Section
       title="Upload Options"
       subtitle="These are options that control how the ePub is rendered on the
-      reMarkable when uploading. They don't affect the raw file itself."
+      reMarkable when uploading. Only the font name also reaches the file
+      itself, since shrinking substituted characters depends on it."
     >
       <MarginSelector margins={opts.margins} setOpts={setOpts} />
       <TextScaleSelector textScale={opts.textScale} setOpts={setOpts} />
