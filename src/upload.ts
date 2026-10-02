@@ -49,7 +49,8 @@ async function upload(
     uploadHost,
     rawHost,
     tokenUrl: _,
-    pdfTrimDevice: __,
+    device: __,
+    trimPdf: ___,
     ...rest
   }: UploadOptions,
   put: (

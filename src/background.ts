@@ -2,6 +2,7 @@ import { fromByteArray } from "base64-js";
 import { pageCapture } from "./capture";
 import type { TitleRequest } from "./messages";
 import { getOptions } from "./options";
+import { registerPrinter } from "./printer";
 import { render } from "./render";
 import { getTab } from "./status";
 import { uploadEpub } from "./upload";
@@ -108,3 +109,5 @@ chrome.runtime.onMessage.addListener(
     });
   },
 );
+
+registerPrinter();

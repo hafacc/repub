@@ -73,8 +73,11 @@ export interface UploadOptions extends FontOption {
   tags: string;
   textAlignment: "left" | "justify";
   viewBackgroundFilter: "off" | "fullpage" | null;
-  // reMarkable model to trim uploaded pdf margins for, or null to leave as-is
-  pdfTrimDevice: DeviceModel | null;
+  // the reMarkable we're sending to: the papers offered when printing, and the
+  // screen trimming fits pdfs to
+  device: DeviceModel;
+  // zoom pdfs past their white margins
+  trimPdf: boolean;
   authHost: string;
   uploadHost: string;
   rawHost: string;
@@ -130,7 +133,8 @@ export const defaultOptions: Options = {
   tags: "",
   textAlignment: "justify",
   viewBackgroundFilter: null,
-  pdfTrimDevice: null,
+  device: "RM110",
+  trimPdf: false,
   promptTitle: false,
   // -------- //
   // API URLs //
@@ -141,13 +145,30 @@ export const defaultOptions: Options = {
   tokenUrl: "https://my.remarkable.com/device/browser/connect",
 };
 
+// replaced by `device` and `trimPdf`, but still read so an existing choice
+// carries over
+const retired = { pdfTrimDevice: null as DeviceModel | null };
+
 export async function getOptions({
   storage = globalThis.chrome?.storage?.local ?? mockStorage,
 }: {
   storage?: Storage;
 } = {}): Promise<Options> {
-  const loaded = await storage.get(defaultOptions);
-  return loaded as Options;
+  const [loaded, old] = await Promise.all([
+    storage.get(defaultOptions),
+    storage.get(retired),
+  ]);
+  const opts = loaded as Options;
+  const { pdfTrimDevice } = old as typeof retired;
+  if (pdfTrimDevice) {
+    opts.device = pdfTrimDevice;
+    opts.trimPdf = true;
+    await Promise.all([
+      storage.set({ device: opts.device, trimPdf: opts.trimPdf }),
+      storage.remove(["pdfTrimDevice"]),
+    ]);
+  }
+  return opts;
 }
 
 export type SetOptions = (options: Partial<Options>) => void;
