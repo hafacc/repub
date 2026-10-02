@@ -79,7 +79,6 @@ export interface UploadOptions extends FontOption {
   // zoom pdfs past their white margins
   trimPdf: boolean;
   authHost: string;
-  uploadHost: string;
   rawHost: string;
   tokenUrl: string;
 }
@@ -140,7 +139,6 @@ export const defaultOptions: Options = {
   // API URLs //
   // -------- //
   authHost: "https://webapp-prod.cloud.remarkable.engineering",
-  uploadHost: "https://internal.cloud.remarkable.com",
   rawHost: "https://eu.tectonic.remarkable.com",
   tokenUrl: "https://my.remarkable.com/device/browser/connect",
 };

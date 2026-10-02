@@ -1257,11 +1257,10 @@ function UploadOptions({
   );
 }
 
-type ApiUrlKey = "authHost" | "uploadHost" | "rawHost" | "tokenUrl";
+type ApiUrlKey = "authHost" | "rawHost" | "tokenUrl";
 
 const apiUrlFields = new Map<ApiUrlKey, string>([
   ["authHost", "Auth Host"],
-  ["uploadHost", "Upload Host"],
   ["rawHost", "Raw Host"],
   ["tokenUrl", "Token URL"],
 ]);
