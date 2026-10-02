@@ -17,9 +17,7 @@ function MuiCheckball(props: CheckballProps): ReactElement {
 }
 
 const Checkball = styled(MuiCheckball)<CheckballProps>(() => ({
-  marginLeft: "15px",
-  marginRight: "15px",
-  alignSelf: "flex-start",
+  margin: 0,
 }));
 
 export default Checkball;

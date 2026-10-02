@@ -118,6 +118,11 @@ global.Image = dom.window["Image"] as typeof Image;
       choices: ["off", "dynamic", "robust"] as const,
       default: defaultOptions.shrinkGlyphs,
     })
+    .option("fit-images", {
+      describe: "keep images inside the page width",
+      type: "boolean",
+      default: defaultOptions.fitImages,
+    })
     .option("code-css", {
       describe: "use code css",
       type: "boolean",
@@ -170,6 +175,7 @@ global.Image = dom.window["Image"] as typeof Image;
       filterLinks: args.filterLinks,
       filterIframes: args.filterIframes,
       rmCss: args.rmCss,
+      fitImages: args.fitImages,
       shrinkGlyphs: args.shrinkGlyphs,
       fontName: args.fontName,
       codeCss: args.codeCss,
@@ -179,6 +185,7 @@ global.Image = dom.window["Image"] as typeof Image;
       coverHeader: args.coverHeader,
       authorByline: args.authorByline,
       // below are unused
+      customCss: "",
       imageBrightness: 1,
       imageShrink: true,
       convertTables: false,
