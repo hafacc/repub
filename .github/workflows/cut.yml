@@ -28,6 +28,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: main # the branch tip, not the dispatch SHA
+          fetch-depth: 0 # a tag pushed out of a shallow clone is rejected
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: bump manifest version
