@@ -8,8 +8,12 @@ import type {
   TrimMessage,
 } from "./messages";
 import type { EpubOptions } from "./options";
+import { Semaphore } from "./utils";
 
 const MAX_CHUNK_SIZE = 50_000_000;
+
+const room = new Semaphore(4);
+
 let ensuring: Promise<void> | null = null;
 
 async function ensureOffscreen(): Promise<void> {
@@ -45,6 +49,7 @@ async function exchange<T>(
   receive: (message: Response, resolve: (value: T) => void) => void,
 ): Promise<T> {
   await ensureOffscreen();
+  await using _permit = await room.lock();
 
   const encoded = fromByteArray(payload);
   const chunks: string[] = [];

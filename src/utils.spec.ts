@@ -1,6 +1,13 @@
 import { expect, test } from "bun:test";
 import { performance } from "node:perf_hooks";
-import { assert, errString, safeFilename, sleep, timeout } from "./utils";
+import {
+  assert,
+  errString,
+  Semaphore,
+  safeFilename,
+  sleep,
+  timeout,
+} from "./utils";
 
 test("sleep()", async () => {
   const first = performance.now();
@@ -48,4 +55,39 @@ test("errString()", () => {
   expect(errString(() => undefined)).toBe("function error: ");
   expect(errString(new Error("custom error"))).toBe("Error: custom error");
   expect(errString({})).toBe("unknown object error");
+});
+
+test("Semaphore", async () => {
+  const limit = new Semaphore(2);
+  const order: number[] = [];
+  let held = 0;
+  let most = 0;
+
+  await Promise.all(
+    Array.from({ length: 5 }, async (_, index) => {
+      await using _permit = await limit.lock();
+      order.push(index);
+      held += 1;
+      most = Math.max(most, held);
+      await sleep(5);
+      held -= 1;
+    }),
+  );
+
+  expect(most).toBe(2);
+  expect(order).toEqual([0, 1, 2, 3, 4]);
+});
+
+test("Semaphore gives a permit back after a throw", async () => {
+  const limit = new Semaphore(1);
+
+  const failed = (async () => {
+    await using _permit = await limit.lock();
+    throw new Error("boom");
+  })();
+  await expect(failed).rejects.toThrow("boom");
+
+  // a permit that was never given back would hang here
+  await using _permit = await limit.lock();
+  expect(true).toBe(true);
 });
