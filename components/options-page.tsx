@@ -70,6 +70,7 @@ import { analyzePdfMargins } from "../src/pdf-trim";
 import { render } from "../src/render";
 import { uploadEpub, uploadPdf } from "../src/upload";
 import { sleep } from "../src/utils";
+import BulkOptions from "./bulk-options";
 import ButtonSelection from "./button-selection";
 import CheckboxSelection from "./checkbox-selection";
 import CssEditor from "./css-editor";
@@ -1482,7 +1483,7 @@ interface Snack {
   message: string;
 }
 
-const groupNames = ["ePub", "CSS", "Upload", "Advanced"] as const;
+const groupNames = ["ePub", "CSS", "Upload", "Bulk", "Advanced"] as const;
 
 export default function OptionsPage(): ReactElement {
   const [tab, setTab] = useState<(typeof groupNames)[number]>(groupNames[0]);
@@ -1639,6 +1640,8 @@ export default function OptionsPage(): ReactElement {
                     <CssOptions opts={opts} setOpts={setOpts} />
                   ) : tab === "Upload" ? (
                     <UploadOptions opts={opts} setOpts={setOpts} />
+                  ) : tab === "Bulk" ? (
+                    <BulkOptions opts={opts} />
                   ) : (
                     <ApiUrlsSection
                       opts={opts}

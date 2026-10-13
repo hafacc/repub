@@ -21,6 +21,54 @@ export async function timeout<T>(
   ]);
 }
 
+// bun lowers `await using` to a lookup of the well-known symbol, falling back
+// to this stand-in on an engine that hasn't got one, as chrome before 134
+const ASYNC_DISPOSE: typeof Symbol.asyncDispose =
+  Symbol.asyncDispose ?? Symbol.for("Symbol.asyncDispose");
+
+/**
+ * a fixed number of permits, each held for the scope of the block that takes it
+ *
+ * `await using permit = await semaphore.lock()` gives the permit back when the
+ * block exits, by return or by throw, and waiters are served in the order they
+ * asked. With one permit it's a mutex.
+ *
+ * ```ts
+ * const limit = new Semaphore(4);
+ * await using permit = await limit.lock();
+ * ```
+ */
+export class Semaphore {
+  #open: number;
+  #waiting: (() => void)[] = [];
+
+  /** a semaphore with `count` permits to hand out */
+  constructor(count: number) {
+    this.#open = count;
+  }
+
+  /** take a permit, waiting for one if they're all out */
+  async lock(): Promise<AsyncDisposable> {
+    if (this.#open) {
+      this.#open -= 1;
+    } else {
+      await new Promise<void>((resolve) => {
+        this.#waiting.push(resolve);
+      });
+    }
+    // a permit goes straight to the next waiter rather than back to the count
+    const release = async (): Promise<void> => {
+      const next = this.#waiting.shift();
+      if (next) {
+        next();
+      } else {
+        this.#open += 1;
+      }
+    };
+    return { [ASYNC_DISPOSE]: release };
+  }
+}
+
 /**
  * assert val with optional error message
  */

@@ -17,6 +17,7 @@
     "https://storage.googleapis.com/",
     "https://eu.tectonic.remarkable.com/"
   ],
+  "optional_permissions": ["tabs"],
   "optional_host_permissions": ["https://*/"],
   "options_page": "out/options.html",
   "action": {
