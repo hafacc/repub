@@ -1,3 +1,5 @@
+import { clearProgress, showFailed, showProgress } from "./icon";
+
 // store active state for navigation
 const activeTabs = new Map<number, Tab>();
 
@@ -13,14 +15,7 @@ class Tab {
 
   async init(): Promise<void> {
     try {
-      await chrome.action.setBadgeBackgroundColor({
-        tabId: this.#tabId,
-        color: "#000000",
-      });
-      await chrome.action.setBadgeText({
-        tabId: this.#tabId,
-        text: "0%",
-      });
+      await showProgress(this.#tabId, 0);
     } catch {
       // ignore
     }
@@ -28,21 +23,15 @@ class Tab {
 
   async progress(perc: number): Promise<void> {
     try {
-      await chrome.action.setBadgeText({
-        tabId: this.#tabId,
-        text: `${perc.toFixed()}%`,
-      });
+      await showProgress(this.#tabId, perc / 100);
     } catch {
       // ignore
     }
   }
 
-  async complete(message: string): Promise<void> {
+  async complete(): Promise<void> {
     try {
-      await chrome.action.setBadgeText({
-        tabId: this.#tabId,
-        text: message,
-      });
+      await showProgress(this.#tabId, 1);
     } catch {
       // ignore
     }
@@ -50,16 +39,7 @@ class Tab {
 
   async error(): Promise<void> {
     try {
-      await Promise.all([
-        chrome.action.setBadgeText({
-          tabId: this.#tabId,
-          text: "err",
-        }),
-        chrome.action.setBadgeBackgroundColor({
-          tabId: this.#tabId,
-          color: "#d62626",
-        }),
-      ]);
+      await showFailed(this.#tabId);
     } catch {
       // ignore
     }
@@ -69,10 +49,7 @@ class Tab {
     this.precount -= 1;
     if (!this.precount && this.nav) {
       try {
-        await chrome.action.setBadgeText({
-          tabId: this.#tabId,
-          text: "",
-        });
+        await clearProgress(this.#tabId);
       } catch {
         // ignore
       }
@@ -85,10 +62,7 @@ class Tab {
       activeTabs.delete(this.#tabId);
       if (this.nav) {
         try {
-          await chrome.action.setBadgeText({
-            tabId: this.#tabId,
-            text: "",
-          });
+          await clearProgress(this.#tabId);
         } catch {
           // ignore
         }
@@ -119,15 +93,10 @@ chrome.webNavigation.onCommitted.addListener(({ tabId, frameId }) => {
     if (active?.precount) {
       active.nav = true;
     } else {
-      chrome.action
-        .setBadgeText({
-          tabId,
-          text: "",
-        })
-        .catch((ex: unknown) => {
-          const message = ex instanceof Error ? ex.message : "unknown error";
-          console.error(`error setting badge text: ${message}`);
-        });
+      clearProgress(tabId).catch((ex: unknown) => {
+        const message = ex instanceof Error ? ex.message : "unknown error";
+        console.error(`error clearing the toolbar icon: ${message}`);
+      });
     }
   }
 });

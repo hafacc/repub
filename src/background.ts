@@ -1,5 +1,6 @@
 import { fromByteArray } from "base64-js";
 import { pageCapture } from "./capture";
+import { clearProgress } from "./icon";
 import type { TitleRequest } from "./messages";
 import { getOptions } from "./options";
 import { registerPrinter } from "./printer";
@@ -17,7 +18,7 @@ async function rePub(
   initTitle?: string,
   initAuthor?: string,
 ) {
-  // get active state for clearing badge with navigation
+  // get active state for clearing the icon with navigation
   const tab = getTab(tabId);
   try {
     await tab.init();
@@ -27,10 +28,7 @@ async function rePub(
 
     if (action && promptTitle) {
       await Promise.all([
-        chrome.action.setBadgeText({
-          tabId,
-          text: "",
-        }),
+        clearProgress(tabId),
         chrome.action.setPopup({ popup: "popup.html" }),
       ]);
       await chrome.action.openPopup();
@@ -70,7 +68,7 @@ async function rePub(
       );
     }
 
-    await tab.complete(outputStyle === "download" ? "done" : "sent");
+    await tab.complete();
   } catch (ex) {
     const msg = ex instanceof Error ? ex.toString() : "unknown error";
     await Promise.all([
