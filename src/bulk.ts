@@ -1,5 +1,6 @@
 import { fromByteArray } from "base64-js";
 import { pageCapture } from "./capture";
+import { showFailed, showProgress } from "./icon";
 import type { EpubOptions, Options, UploadOptions } from "./options";
 import { render } from "./render";
 import { uploadEpub } from "./upload";
@@ -43,6 +44,18 @@ interface ExportEnv {
     opts: UploadOptions,
   ) => Promise<void>;
   save: (epub: Uint8Array, filename: string, saveAs: boolean) => Promise<void>;
+  mark: (tabId: number, state: PageState) => Promise<void>;
+}
+
+/** put a page's state on its own toolbar icon, the way a single page does */
+async function markTab(tabId: number, state: PageState): Promise<void> {
+  if (state.kind === "failed") {
+    await showFailed(tabId);
+  } else if (state.kind === "finished") {
+    await showProgress(tabId, 1);
+  } else {
+    await showProgress(tabId, state.progress);
+  }
 }
 
 /** what stops an export before it starts, when anything does */
@@ -184,20 +197,19 @@ export async function exportPages(
   report: (tabId: number, state: PageState) => void,
   env: Partial<ExportEnv> = {},
 ): Promise<void> {
+  const { mark = markTab } = env;
   await Promise.all(
     pages.map(async (page) => {
+      const show = (state: PageState): void => {
+        report(page.tabId, state);
+        mark(page.tabId, state).catch((ex: unknown) => {
+          console.warn(ex);
+        });
+      };
       try {
-        await exportPage(
-          page,
-          names.get(page.tabId),
-          opts,
-          (state) => {
-            report(page.tabId, state);
-          },
-          env,
-        );
+        await exportPage(page, names.get(page.tabId), opts, show, env);
       } catch (ex) {
-        report(page.tabId, { kind: "failed", error: errString(ex) });
+        show({ kind: "failed", error: errString(ex) });
       }
     }),
   );

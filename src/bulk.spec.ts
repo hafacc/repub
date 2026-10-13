@@ -25,6 +25,7 @@ function fakeEnv(overrides: FakeEnv = {}): FakeEnv {
     convert: async () => ({ epub: new Uint8Array([1]), title: "parsed title" }),
     send: async () => {},
     save: async () => {},
+    mark: async () => {},
     ...overrides,
   };
 }
@@ -202,6 +203,7 @@ test("every page goes on its own", async () => {
   const opts: Options = { ...defaultOptions, deviceToken: "token" };
   const pages: PageTab[] = [page, { ...page, tabId: 2, title: "another page" }];
   const states = new Map<number, PageState>();
+  const marks = new Map<number, PageState>();
 
   await exportPages(
     pages,
@@ -215,6 +217,9 @@ test("every page goes on its own", async () => {
         if (tabId === 2) throw new Error("no response");
         return new ArrayBuffer(4);
       },
+      mark: async (tabId, state) => {
+        marks.set(tabId, state);
+      },
     }),
   );
 
@@ -223,6 +228,8 @@ test("every page goes on its own", async () => {
     kind: "failed",
     error: "Error: no response",
   });
+  // each tab's own icon says the same as its row
+  expect(marks).toEqual(states);
 });
 
 test("only a few pages go at a time", async () => {
