@@ -7,7 +7,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "cli": "bun run src/cli.ts",
+    "cli": "bun src/cli.ts",
     "dev": "bun ./options.html",
     "fmt": "biome format --write",
     "lint": "tsc && biome check",
