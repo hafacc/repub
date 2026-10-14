@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+  byWindow,
   convertible,
   exportPage,
   exportPages,
@@ -11,6 +12,7 @@ import { defaultOptions, type Options } from "./options";
 
 const page: PageTab = {
   tabId: 1,
+  windowId: 1,
   title: "a page",
   url: "https://example.com/a-page",
   convertible: true,
@@ -51,19 +53,26 @@ test("listable", () => {
   const tabs = [
     {
       id: 1,
+      windowId: 7,
       url: "https://example.com/one",
       title: "one",
       favIconUrl: "https://example.com/icon.png",
     },
-    { id: 2, url: "chrome://new-tab-page", title: "New Tab" },
-    { id: 3, url: "chrome-extension://repub/out/options.html", title: "mine" },
-    { id: 4, url: "https://example.com/four" },
-    { url: "https://example.com/no-id" },
+    { id: 2, windowId: 7, url: "chrome://new-tab-page", title: "New Tab" },
+    {
+      id: 3,
+      windowId: 7,
+      url: "chrome-extension://repub/out/options.html",
+      title: "mine",
+    },
+    { id: 4, windowId: 8, url: "https://example.com/four" },
+    { windowId: 8, url: "https://example.com/no-id" },
   ] as chrome.tabs.Tab[];
 
   expect(listable(tabs, "chrome-extension://repub/")).toEqual([
     {
       tabId: 1,
+      windowId: 7,
       title: "one",
       url: "https://example.com/one",
       favIconUrl: "https://example.com/icon.png",
@@ -71,16 +80,38 @@ test("listable", () => {
     },
     {
       tabId: 2,
+      windowId: 7,
       title: "New Tab",
       url: "chrome://new-tab-page",
       convertible: false,
     },
     {
       tabId: 4,
+      windowId: 8,
       title: "https://example.com/four",
       url: "https://example.com/four",
       convertible: true,
     },
+  ]);
+});
+
+test("windows come in the order they were opened", () => {
+  const third = { ...page, tabId: 1, windowId: 3 };
+  const first = { ...page, tabId: 2, windowId: 1 };
+  const alsoThird = { ...page, tabId: 3, windowId: 3 };
+  const second = { ...page, tabId: 4, windowId: 2 };
+  const pages = [third, first, alsoThird, second];
+
+  expect(byWindow(pages, 2)).toEqual([
+    { windowId: 1, heading: "Window 1", pages: [first] },
+    { windowId: 2, heading: "This window", pages: [second] },
+    { windowId: 3, heading: "Window 3", pages: [third, alsoThird] },
+  ]);
+  // with no window of its own to go by, every window is numbered
+  expect(byWindow(pages).map(({ heading }) => heading)).toEqual([
+    "Window 1",
+    "Window 2",
+    "Window 3",
   ]);
 });
 

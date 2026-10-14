@@ -7,6 +7,7 @@ import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
 import {
+  Fragment,
   type ReactElement,
   useCallback,
   useEffect,
@@ -16,6 +17,7 @@ import {
 import { FaGlobe, FaRegSquare } from "react-icons/fa6";
 import {
   blocker,
+  byWindow,
   exportPages,
   listable,
   type PageState,
@@ -53,6 +55,24 @@ function subscribe(listener: () => void): () => void {
 async function listPages(): Promise<PageTab[]> {
   const tabs = await chrome.tabs.query({});
   return listable(tabs, chrome.runtime.getURL(""));
+}
+
+/** which window the rows below it are open in */
+function WindowRow({ heading }: { heading: string }): ReactElement {
+  return (
+    <Typography
+      variant="caption"
+      sx={{
+        pt: 2,
+        pb: 0.5,
+        fontWeight: 500,
+        borderBottom: "1px solid",
+        borderColor: "divider",
+      }}
+    >
+      {heading}
+    </Typography>
+  );
 }
 
 /** the page's own icon, with a stand-in for a page that hasn't got one */
@@ -207,6 +227,7 @@ export default function BulkOptions({
   useSyncExternalStore(subscribe, () => panel.version);
   const [granted, setGranted] = useState<boolean | undefined>(undefined);
   const [pages, setPages] = useState<PageTab[]>([]);
+  const [here, setHere] = useState<number | undefined>(undefined);
   const [error, setError] = useState("");
   const running = panel.running;
 
@@ -239,6 +260,17 @@ export default function BulkOptions({
       reload();
     }
   }, [reload]);
+
+  useEffect(() => {
+    globalThis.chrome?.windows?.getCurrent().then(
+      ({ id }) => {
+        setHere(id);
+      },
+      (ex: unknown) => {
+        console.warn(ex);
+      },
+    );
+  }, []);
 
   useEffect(() => {
     if (!granted) return;
@@ -369,6 +401,7 @@ export default function BulkOptions({
       </Stack>
     );
   } else {
+    const windows = byWindow(pages, here);
     const verb = outputStyle === "download" ? "Download" : "Upload";
     const count = running || chosen.length;
     const noun = count === 1 ? "Tab" : "Tabs";
@@ -408,18 +441,23 @@ export default function BulkOptions({
             No open tabs can be converted.
           </Typography>
         )}
-        {pages.map((page) => (
-          <PageRow
-            key={page.tabId}
-            page={page}
-            state={panel.states.get(page.tabId)}
-            selected={panel.selected.has(page.tabId)}
-            name={panel.names.get(page.tabId) ?? safeFilename(page.title)}
-            asking={asking}
-            running={!!running}
-            onToggle={toggle}
-            onName={rename}
-          />
+        {windows.map(({ windowId, heading, pages: listed }) => (
+          <Fragment key={windowId}>
+            {windows.length > 1 ? <WindowRow heading={heading} /> : null}
+            {listed.map((page) => (
+              <PageRow
+                key={page.tabId}
+                page={page}
+                state={panel.states.get(page.tabId)}
+                selected={panel.selected.has(page.tabId)}
+                name={panel.names.get(page.tabId) ?? safeFilename(page.title)}
+                asking={asking}
+                running={!!running}
+                onToggle={toggle}
+                onName={rename}
+              />
+            ))}
+          </Fragment>
         ))}
         <Box sx={{ pt: 3 }}>
           <Button

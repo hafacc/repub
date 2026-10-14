@@ -15,6 +15,7 @@ const room = new Semaphore(4);
 /** an open tab offered for export */
 export interface PageTab {
   tabId: number;
+  windowId: number;
   title: string;
   url: string;
   // the page's own icon, which chrome only hands over with the tabs permission
@@ -83,10 +84,11 @@ export function listable(
   own: string,
 ): PageTab[] {
   const pages: PageTab[] = [];
-  for (const { id, url, title, favIconUrl } of tabs) {
+  for (const { id, windowId, url, title, favIconUrl } of tabs) {
     if (id === undefined || !url || url.startsWith(own)) continue;
     pages.push({
       tabId: id,
+      windowId,
       title: title ?? url,
       url,
       favIconUrl,
@@ -94,6 +96,45 @@ export function listable(
     });
   }
   return pages;
+}
+
+/** the pages of one window, under the heading they go beneath */
+export interface PageWindow {
+  windowId: number;
+  heading: string;
+  pages: PageTab[];
+}
+
+/**
+ * split pages into their windows, oldest window first
+ *
+ * Windows have no name, so they're numbered by the order chrome handed out
+ * their ids, which holds still for as long as the browser is open. `current`
+ * is the window the list is being read in, which says so instead of a number.
+ */
+export function byWindow(
+  pages: readonly PageTab[],
+  current?: number,
+): PageWindow[] {
+  const windows = new Map<number, PageTab[]>();
+  for (const page of pages) {
+    const listed = windows.get(page.windowId);
+    if (listed) {
+      listed.push(page);
+    } else {
+      windows.set(page.windowId, [page]);
+    }
+  }
+  return [...windows]
+    .sort(([left], [right]) => left - right)
+    .map(([windowId, listed], index) => ({
+      windowId,
+      heading:
+        windowId === current
+          ? "This window"
+          : `Window ${(index + 1).toFixed()}`,
+      pages: listed,
+    }));
 }
 
 /** wait for a tab to be loaded, reloading one chrome has unloaded */
