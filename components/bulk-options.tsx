@@ -57,21 +57,53 @@ async function listPages(): Promise<PageTab[]> {
   return listable(tabs, chrome.runtime.getURL(""));
 }
 
-/** which window the rows below it are open in */
-function WindowRow({ heading }: { heading: string }): ReactElement {
+/** which window the rows below it are open in, and a switch for all of them */
+function WindowRow({
+  windowId,
+  heading,
+  selected,
+  total,
+  running,
+  onToggle,
+}: {
+  windowId: number;
+  heading: string;
+  // how many of the window's convertible tabs are switched on
+  selected: number;
+  // how many of its tabs can be converted at all
+  total: number;
+  running: boolean;
+  onToggle: (windowId: number) => void;
+}): ReactElement {
+  const toggle = useCallback(() => {
+    onToggle(windowId);
+  }, [onToggle, windowId]);
   return (
-    <Typography
-      variant="caption"
+    <Box
       sx={{
-        pt: 2,
-        pb: 0.5,
-        fontWeight: 500,
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+        pt: 4,
         borderBottom: "1px solid",
         borderColor: "divider",
       }}
     >
-      {heading}
-    </Typography>
+      <Typography
+        variant="caption"
+        sx={{ fontWeight: 500, flex: "1 1 auto", py: 0.5 }}
+      >
+        {heading}
+      </Typography>
+      {total ? (
+        <Switch
+          checked={selected === total}
+          disabled={running}
+          onChange={toggle}
+          slotProps={{ input: { "aria-label": `select all in ${heading}` } }}
+        />
+      ) : null}
+    </Box>
   );
 }
 
@@ -335,6 +367,25 @@ export default function BulkOptions({
     });
   }, [convertibles]);
 
+  const toggleWindow = useCallback(
+    (windowId: number) => {
+      change(() => {
+        const listed = convertibles.filter(
+          (page) => page.windowId === windowId,
+        );
+        const every = listed.every((page) => panel.selected.has(page.tabId));
+        for (const page of listed) {
+          if (every) {
+            panel.selected.delete(page.tabId);
+          } else {
+            panel.selected.add(page.tabId);
+          }
+        }
+      });
+    },
+    [convertibles],
+  );
+
   const start = useCallback(() => {
     change(() => {
       panel.running = chosen.length;
@@ -443,7 +494,21 @@ export default function BulkOptions({
         )}
         {windows.map(({ windowId, heading, pages: listed }) => (
           <Fragment key={windowId}>
-            {windows.length > 1 ? <WindowRow heading={heading} /> : null}
+            {windows.length > 1 ? (
+              <WindowRow
+                windowId={windowId}
+                heading={heading}
+                selected={
+                  listed.filter(
+                    (page) =>
+                      page.convertible && panel.selected.has(page.tabId),
+                  ).length
+                }
+                total={listed.filter((page) => page.convertible).length}
+                running={!!running}
+                onToggle={toggleWindow}
+              />
+            ) : null}
             {listed.map((page) => (
               <PageRow
                 key={page.tabId}
