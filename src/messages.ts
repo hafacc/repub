@@ -42,6 +42,12 @@ export interface TrimResponse {
   zoom: Partial<PutOptions>;
 }
 
+/** how much of the epub is done, as a portion of the whole render */
+export interface ProgressResponse {
+  type: "progress";
+  portion: number;
+}
+
 export interface ErrorMessage {
   type: "error";
   err: string;
@@ -49,7 +55,12 @@ export interface ErrorMessage {
 
 export type Message = InitMessage | TrimMessage | PartMessage;
 
-export type Response = InitResponse | TrimResponse | PartMessage | ErrorMessage;
+export type Response =
+  | InitResponse
+  | TrimResponse
+  | ProgressResponse
+  | PartMessage
+  | ErrorMessage;
 
 export interface TitleRequest {
   tabId: number;
