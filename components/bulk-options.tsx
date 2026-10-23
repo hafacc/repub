@@ -24,6 +24,7 @@ import {
   type PageTab,
 } from "../src/bulk";
 import { getOptions, type Options } from "../src/options";
+import { reach } from "../src/progress";
 import { errString, safeFilename } from "../src/utils";
 
 // the panel unmounts the moment another tab is picked, so what's chosen, what's
@@ -126,6 +127,12 @@ function Favicon({ page }: { page: PageTab }): ReactElement {
   }
 }
 
+// a step reports when it starts and then as it goes, so between reports the
+// browser eases the ring on toward the end of the step; the long curve is
+// front-loaded, which is why a slow step still looks like it's moving
+const DRIFT = "6s cubic-bezier(0, 0.7, 0.25, 1)";
+const SETTLE = "400ms cubic-bezier(0.4, 0, 0.2, 1)";
+
 /** the page's icon, ringed by how far along its export is */
 function PageIcon({
   page,
@@ -157,11 +164,18 @@ function PageIcon({
           />
           <CircularProgress
             variant="determinate"
-            value={state.kind === "running" ? state.progress * 100 : 100}
+            value={state.kind === "running" ? reach(state) * 100 : 100}
             size={28}
             thickness={4}
             color={state.kind === "failed" ? "error" : "primary"}
-            sx={{ position: "absolute" }}
+            sx={{
+              position: "absolute",
+              "& circle": {
+                transition: `stroke-dashoffset ${
+                  state.kind === "running" ? DRIFT : SETTLE
+                }`,
+              },
+            }}
           />
         </>
       )}
