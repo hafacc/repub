@@ -18,9 +18,15 @@ async function makeEpub(
     payload,
     bright,
     options,
-    summarize,
-    title,
-    author,
+    {
+      summarize,
+      title,
+      author,
+      onProgress: (portion) => {
+        const progress: Response = { type: "progress", portion };
+        port.postMessage(progress);
+      },
+    },
   );
   const encoded = fromByteArray(epub);
 

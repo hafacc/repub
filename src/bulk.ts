@@ -2,6 +2,7 @@ import { fromByteArray } from "base64-js";
 import { pageCapture } from "./capture";
 import { showFailed, showProgress } from "./icon";
 import type { EpubOptions, Options, UploadOptions } from "./options";
+import { steps, within } from "./progress";
 import { render } from "./render";
 import { uploadEpub } from "./upload";
 import { errString, Semaphore, safeFilename, timeout } from "./utils";
@@ -11,6 +12,9 @@ import { errString, Semaphore, safeFilename, timeout } from "./utils";
 const WAKE_TIMEOUT = 30_000;
 
 const room = new Semaphore(4);
+
+/** the parts of an export, weighted by how long each tends to take */
+export const stage = steps({ wake: 1, capture: 2, render: 6, send: 2 });
 
 /** an open tab offered for export */
 export interface PageTab {
@@ -26,7 +30,7 @@ export interface PageTab {
 
 /** how far along a page is, or what became of it */
 export type PageState =
-  | { kind: "running"; progress: number }
+  | { kind: "running"; progress: number; upto: number }
   | { kind: "finished" }
   | { kind: "failed"; error: string };
 
@@ -37,6 +41,7 @@ interface ExportEnv {
   convert: (
     mhtml: ArrayBuffer,
     opts: EpubOptions,
+    extra?: { onProgress?: (portion: number) => void },
   ) => Promise<{ epub: Uint8Array; title?: string }>;
   send: (
     epub: Uint8Array,
@@ -53,9 +58,9 @@ async function markTab(tabId: number, state: PageState): Promise<void> {
   if (state.kind === "failed") {
     await showFailed(tabId);
   } else if (state.kind === "finished") {
-    await showProgress(tabId, 1);
+    showProgress(tabId, { progress: 1, upto: 1 });
   } else {
-    await showProgress(tabId, state.progress);
+    showProgress(tabId, state);
   }
 }
 
@@ -210,13 +215,21 @@ export async function exportPage(
   const given = name?.trim() || undefined;
 
   await using _permit = await room.lock();
-  report({ kind: "running", progress: 0.1 });
+  report({ kind: "running", ...within(stage.wake, 0) });
   await wake(page.tabId);
-  report({ kind: "running", progress: 0.25 });
+  report({ kind: "running", ...within(stage.capture, 0) });
   const mhtml = await capture(page.tabId);
-  report({ kind: "running", progress: 0.5 });
-  const { epub, title = given ?? "missing title" } = await convert(mhtml, rest);
-  report({ kind: "running", progress: 0.75 });
+  report({ kind: "running", ...within(stage.render, 0) });
+  const { epub, title = given ?? "missing title" } = await convert(
+    mhtml,
+    rest,
+    {
+      onProgress: (portion) => {
+        report({ kind: "running", ...within(stage.render, portion) });
+      },
+    },
+  );
+  report({ kind: "running", ...within(stage.send, 0) });
 
   if (outputStyle === "download") {
     await save(
