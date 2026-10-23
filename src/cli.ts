@@ -192,7 +192,6 @@ global.Image = dom.window["Image"] as typeof Image;
       rotateTables: false,
       tableResolution: 1,
     },
-    true,
   );
 
   if (args.verbose > 0) {

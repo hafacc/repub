@@ -7,8 +7,10 @@ import {
   listable,
   type PageState,
   type PageTab,
+  stage,
 } from "./bulk";
 import { defaultOptions, type Options } from "./options";
+import { within } from "./progress";
 
 const page: PageTab = {
   tabId: 1,
@@ -139,12 +141,36 @@ test("upload a page", async () => {
   expect(woke).toEqual([1]);
   expect(sent).toEqual(["parsed title"]);
   expect(states).toEqual([
-    { kind: "running", progress: 0.1 },
-    { kind: "running", progress: 0.25 },
-    { kind: "running", progress: 0.5 },
-    { kind: "running", progress: 0.75 },
+    { kind: "running", ...within(stage.wake, 0) },
+    { kind: "running", ...within(stage.capture, 0) },
+    { kind: "running", ...within(stage.render, 0) },
+    { kind: "running", ...within(stage.send, 0) },
     { kind: "finished" },
   ]);
+});
+
+test("a render reports its own progress", async () => {
+  const opts: Options = { ...defaultOptions, deviceToken: "token" };
+  const [states, report] = collect();
+
+  await exportPage(
+    page,
+    undefined,
+    opts,
+    report,
+    fakeEnv({
+      convert: async (_, __, extra) => {
+        extra?.onProgress?.(0.5);
+        return { epub: new Uint8Array([1]), title: "parsed title" };
+      },
+    }),
+  );
+
+  // half way through the render lands half way through the render's own share
+  expect(states).toContainEqual({
+    kind: "running",
+    ...within(stage.render, 0.5),
+  });
 });
 
 test("upload needs a token", async () => {

@@ -3,6 +3,7 @@ import { baseTableCss, epubCss } from "./css";
 import { epub, type ImageData, type ImageMime } from "./epub";
 import type { EpubOptions } from "./options";
 import { parse } from "./parse";
+import { steps, within } from "./progress";
 
 type Brighten = (
   buffer: Uint8Array,
@@ -18,13 +19,31 @@ interface Result {
   title?: string;
 }
 
+/** the parts of a render, weighted by how long each tends to take */
+const stage = steps({ read: 2, alter: 5, images: 4, pack: 2 });
+
+/** what a render can be told beyond the page itself */
+export interface GenerateExtra {
+  /** whether to cut the page down to its article first */
+  summarize?: boolean;
+  /** the title to use instead of the one read off the page */
+  title?: string;
+  /** the author to use instead of the one read off the page */
+  author?: string;
+  /** called as the render goes, with how much of it is done */
+  onProgress?: (portion: number) => void;
+}
+
 export async function generate(
   mhtml: Uint8Array,
   brighten: Brighten,
   options: EpubOptions,
-  summarize: boolean,
-  initTitle?: string,
-  initAuthor?: string,
+  {
+    summarize = true,
+    title: initTitle,
+    author: initAuthor,
+    onProgress = () => {},
+  }: GenerateExtra = {},
 ): Promise<Result> {
   const {
     imageHrefSimilarityThreshold,
@@ -61,6 +80,7 @@ export async function generate(
     }
   }
 
+  onProgress(stage.alter.from);
   const matcher =
     imageHrefSimilarityThreshold > 0
       ? closeMatch(assetData, imageHrefSimilarityThreshold)
@@ -88,15 +108,26 @@ export async function generate(
     seen.add(cover);
   }
 
+  // every image is its own slice of the images step, so a page full of them
+  // reports as each one lands rather than all at once
+  let done = 0;
+  const count = seen.size;
+  const ticked = <Value>(value: Value): Value => {
+    done += 1;
+    onProgress(within(stage.images, done / count).progress);
+    return value;
+  };
+
+  onProgress(stage.images.from);
   const proms = [];
   for (const href of seen) {
     const { mime, data } = assetData.get(href)!;
     proms.push(
       brighten(data, mime).then(
-        ([data, mime]) => [href, data, mime] as const,
+        ([data, mime]) => ticked([href, data, mime] as const),
         (err: unknown) => {
           console.warn(`problem brightening ${href}:`, err);
-          return null;
+          return ticked(null);
         },
       ),
     );
@@ -113,6 +144,7 @@ export async function generate(
     brightened.set(url, { data, mime });
   }
 
+  onProgress(stage.pack.from);
   const buffer = await epub({
     title: initTitle ?? title,
     content: altered,
@@ -123,6 +155,7 @@ export async function generate(
     byline: bylineHeader,
     cover: coverHeader ? cover : undefined,
   });
+  onProgress(1);
   return {
     epub: buffer,
     title: initTitle ?? title,

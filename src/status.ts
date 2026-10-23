@@ -1,4 +1,5 @@
 import { clearProgress, showFailed, showProgress } from "./icon";
+import type { Spot } from "./progress";
 
 // store active state for navigation
 const activeTabs = new Map<number, Tab>();
@@ -13,28 +14,16 @@ class Tab {
     this.#tabId = tabId;
   }
 
-  async init(): Promise<void> {
-    try {
-      await showProgress(this.#tabId, 0);
-    } catch {
-      // ignore
-    }
+  init(): void {
+    showProgress(this.#tabId, { progress: 0, upto: 0 });
   }
 
-  async progress(perc: number): Promise<void> {
-    try {
-      await showProgress(this.#tabId, perc / 100);
-    } catch {
-      // ignore
-    }
+  progress(spot: Spot): void {
+    showProgress(this.#tabId, spot);
   }
 
-  async complete(): Promise<void> {
-    try {
-      await showProgress(this.#tabId, 1);
-    } catch {
-      // ignore
-    }
+  complete(): void {
+    showProgress(this.#tabId, { progress: 1, upto: 1 });
   }
 
   async error(): Promise<void> {

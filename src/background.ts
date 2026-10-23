@@ -4,10 +4,14 @@ import { clearProgress } from "./icon";
 import type { TitleRequest } from "./messages";
 import { getOptions } from "./options";
 import { registerPrinter } from "./printer";
+import { steps, within } from "./progress";
 import { render } from "./render";
 import { getTab } from "./status";
 import { uploadEpub } from "./upload";
 import { safeFilename, sleep } from "./utils";
+
+/** the parts of a conversion, weighted by how long each tends to take */
+const stage = steps({ capture: 2, render: 6, send: 2 });
 
 /**
  * create and upload epub
@@ -21,7 +25,7 @@ async function rePub(
   // get active state for clearing the icon with navigation
   const tab = getTab(tabId);
   try {
-    await tab.init();
+    tab.init();
 
     const { deviceToken, outputStyle, downloadAsk, promptTitle, ...opts } =
       await getOptions();
@@ -35,18 +39,19 @@ async function rePub(
       return;
     }
 
-    await tab.progress(25);
+    tab.progress(within(stage.capture, 0));
 
     const mhtml = await pageCapture(tabId);
-    await tab.progress(50);
+    tab.progress(within(stage.render, 0));
 
-    const { epub, title = "missing title" } = await render(
-      mhtml,
-      opts,
-      initTitle,
-      initAuthor,
-    );
-    await tab.progress(75);
+    const { epub, title = "missing title" } = await render(mhtml, opts, {
+      title: initTitle,
+      author: initAuthor,
+      onProgress: (portion) => {
+        tab.progress(within(stage.render, portion));
+      },
+    });
+    tab.progress(within(stage.send, 0));
 
     // upload
     if (outputStyle === "download") {
@@ -68,7 +73,7 @@ async function rePub(
       );
     }
 
-    await tab.complete();
+    tab.complete();
   } catch (ex) {
     const msg = ex instanceof Error ? ex.toString() : "unknown error";
     await Promise.all([

@@ -78,12 +78,22 @@ async function exchange<T>(
   });
 }
 
+/** what a render can be told beyond the page itself */
+export interface RenderExtra {
+  /** the title to use instead of the one read off the page */
+  title?: string;
+  /** the author to use instead of the one read off the page */
+  author?: string;
+  /** whether to cut the page down to its article first */
+  summarize?: boolean;
+  /** called as the render goes, with how much of it is done */
+  onProgress?: (portion: number) => void;
+}
+
 export async function render(
   mhtml: ArrayBuffer,
   opts: EpubOptions,
-  title?: string,
-  author?: string,
-  summarize: boolean = true,
+  { title, author, summarize = true, onProgress = () => {} }: RenderExtra = {},
 ): Promise<{ epub: Uint8Array; title?: string }> {
   const parts: string[] = [];
   let receivedParts = 0;
@@ -107,6 +117,8 @@ export async function render(
       } else if (message.type === "info") {
         expectedParts = message.numParts;
         parsedTitle = message.title;
+      } else if (message.type === "progress") {
+        onProgress(message.portion);
       }
       if (expectedParts === receivedParts) {
         resolve(parts);
