@@ -7,6 +7,10 @@ import { reach, type Spot } from "./progress";
 const SIZE = 32;
 const STROKE = 3;
 const TRACK = "rgba(0, 0, 0, 0.15)";
+// the ring runs at part strength while a conversion is going and turns full
+// black the moment it's done, so a closed ring reads differently from one that
+// is only nearly closed
+const WORKING = "rgba(0, 0, 0, 0.42)";
 const FILL = "#000000";
 const FAILED = "#d62626";
 
@@ -76,9 +80,9 @@ async function paint(
   }
   ctx.clearRect(0, 0, SIZE, SIZE);
 
-  // the icon gives up room for the ring, so what it draws stays inside it
-  const inset = ring ? STROKE * 2 : 0;
-  ctx.drawImage(bitmap, inset, inset, SIZE - 2 * inset, SIZE - 2 * inset);
+  // the ring is drawn on the icon's own white circle, so the icon keeps the
+  // whole square and never changes size for a conversion
+  ctx.drawImage(bitmap, 0, 0, SIZE, SIZE);
 
   if (ring) {
     const center = SIZE / 2;
@@ -147,7 +151,8 @@ class Ring {
     }
     this.#drawn = nudges;
     this.#drawing = true;
-    paint({ portion: nudges * NUDGE, color: FILL })
+    const color = this.#spot.progress < 1 ? WORKING : FILL;
+    paint({ portion: nudges * NUDGE, color })
       .then((imageData) =>
         chrome.action.setIcon({ tabId: this.#tabId, imageData }),
       )
