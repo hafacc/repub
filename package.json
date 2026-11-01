@@ -45,7 +45,7 @@
     "leven": "^4.1.0",
     "marked": "^18.0.14",
     "mhtml-stream": "^3.0.1",
-    "pdfjs-dist": "^6.3.289",
+    "pdfjs-dist": "^6.4.299",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-dropzone": "^20.1.2",
