@@ -3,6 +3,8 @@ import { performance } from "node:perf_hooks";
 import {
   assert,
   errString,
+  joinTags,
+  parseTags,
   Semaphore,
   safeFilename,
   sleep,
@@ -90,4 +92,18 @@ test("Semaphore gives a permit back after a throw", async () => {
   // a permit that was never given back would hang here
   await using _permit = await limit.lock();
   expect(true).toBe(true);
+});
+
+test("parseTags()", () => {
+  expect(parseTags("")).toEqual([]);
+  expect(parseTags("  ,  ,")).toEqual([]);
+  expect(parseTags("one, two ,three")).toEqual(["one", "two", "three"]);
+  expect(parseTags("a tag with spaces")).toEqual(["a tag with spaces"]);
+});
+
+test("joinTags()", () => {
+  expect(joinTags([])).toBe("");
+  expect(joinTags(["one", "two"])).toBe("one, two");
+  // what comes back goes out again the same
+  expect(parseTags(joinTags(["one", "two"]))).toEqual(["one", "two"]);
 });

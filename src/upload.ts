@@ -1,5 +1,6 @@
 import { type PutOptions, type RemarkableApi, remarkable } from "rmapi-js";
 import type { UploadOptions } from "./options";
+import { parseTags } from "./utils";
 
 const CACHE_KEY = "rmCache";
 let cachedKey = "";
@@ -58,15 +59,11 @@ async function upload(
   ) => Promise<unknown>,
   extra: Partial<PutOptions> = {},
 ): Promise<void> {
-  const tagList = [
-    ...Iterator.from(tags.split(","))
-      .map((tag) => tag.trim())
-      .filter((tag) => !!tag.length),
-  ];
   const opts = {
     ...rest,
     ...extra,
-    tags: tagList,
+    // tags given for this one document stand in for the saved ones
+    tags: extra.tags ?? parseTags(tags),
     viewBackgroundFilter: viewBackgroundFilter ?? undefined,
     title,
   };
@@ -80,10 +77,34 @@ export function uploadEpub(
   title: string,
   deviceToken: string,
   options: UploadOptions,
+  extra: Partial<PutOptions> = {},
 ): Promise<void> {
-  return upload(epub, title, deviceToken, options, (api, name, buffer, opts) =>
-    api.putEpub(name, buffer, opts),
+  return upload(
+    epub,
+    title,
+    deviceToken,
+    options,
+    (api, name, buffer, opts) => api.putEpub(name, buffer, opts),
+    extra,
   );
+}
+
+/** every tag already in use on the tablet */
+export async function listTags(
+  deviceToken: string,
+  { authHost, rawHost }: Pick<UploadOptions, "authHost" | "rawHost">,
+): Promise<string[]> {
+  const api = await getApi(deviceToken, 1_000_000, authHost, rawHost);
+  const names = new Set<string>();
+  for (const { tags } of await api.listItems()) {
+    for (const tag of tags ?? []) {
+      const name = (typeof tag === "string" ? tag : tag.name).trim();
+      if (name) {
+        names.add(name);
+      }
+    }
+  }
+  return [...names].sort((left, right) => left.localeCompare(right));
 }
 
 export function uploadPdf(
