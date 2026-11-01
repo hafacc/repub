@@ -67,7 +67,7 @@ label {
   color: var(--label);
 }
 
-input {
+.field > input {
   outline: 0;
   border: 0;
   border-bottom: 1px solid var(--line);
@@ -83,12 +83,12 @@ input {
   color: var(--ink);
 }
 
-input:focus {
+.field > input:focus {
   border-bottom: 2px solid var(--ink);
   margin-bottom: -2px;
 }
 
-input:disabled {
+.field > input:disabled {
   color: var(--spent);
   border-bottom-style: dotted;
 }
