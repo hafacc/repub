@@ -766,21 +766,6 @@ function EpubOptions({
         shrinkGlyphs={opts.shrinkGlyphs}
         setOpts={setOpts}
       />
-      <SimplCheckboxSelection
-        name="promptTitle"
-        title="Prompt for Title and Author"
-        caption="If enabled, instead of automatically rendering the page, this
-        extension will first prompt for the title and author you want to set."
-        opts={opts}
-        setOpts={setOpts}
-        onChange={(val) => {
-          chrome.action
-            .setPopup({ popup: val ? "popup.html" : "" })
-            .catch((err) => {
-              console.error("couldn't set popup", err);
-            });
-        }}
-      />
     </Stack>
   );
 }
@@ -1179,7 +1164,8 @@ function TagsSelector({
   return (
     <OptionRow
       title="Tags"
-      caption="Comma separated list of tags to apply to uploaded documents"
+      caption="The tags every uploaded document starts with; a page's own tags
+      start from these"
       control={control}
     />
   );

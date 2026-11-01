@@ -86,8 +86,6 @@ export interface Options extends EpubOptions, UploadOptions {
   downloadAsk: boolean;
   // did we notify about remarkable breaking
   didNotify: boolean;
-  // if to prompt for title
-  promptTitle: boolean;
 }
 
 export const defaultOptions: Options = {
@@ -132,7 +130,6 @@ export const defaultOptions: Options = {
   viewBackgroundFilter: null,
   device: "RM110",
   trimPdf: false,
-  promptTitle: false,
   // -------- //
   // API URLs //
   // -------- //
@@ -141,9 +138,13 @@ export const defaultOptions: Options = {
   tokenUrl: "https://my.remarkable.com/device/browser/connect",
 };
 
-// replaced by `device` and `trimPdf`, but still read so an existing choice
-// carries over
-const retired = { pdfTrimDevice: null as DeviceModel | null };
+// options that are gone: `pdfTrimDevice` was replaced by `device` and
+// `trimPdf`, so its choice carries over, while prompting for a title is now the
+// icon's second-button menu and has nothing to carry
+const retired = {
+  pdfTrimDevice: null as DeviceModel | null,
+  promptTitle: null as boolean | null,
+};
 
 export async function getOptions({
   storage = globalThis.chrome?.storage?.local ?? mockStorage,
@@ -155,7 +156,7 @@ export async function getOptions({
     storage.get(retired),
   ]);
   const opts = loaded as Options;
-  const { pdfTrimDevice } = old as typeof retired;
+  const { pdfTrimDevice, promptTitle } = old as typeof retired;
   if (pdfTrimDevice) {
     opts.device = pdfTrimDevice;
     opts.trimPdf = true;
@@ -163,6 +164,9 @@ export async function getOptions({
       storage.set({ device: opts.device, trimPdf: opts.trimPdf }),
       storage.remove(["pdfTrimDevice"]),
     ]);
+  }
+  if (promptTitle !== null) {
+    await storage.remove(["promptTitle"]);
   }
   return opts;
 }
