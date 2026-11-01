@@ -1,0 +1,118 @@
+@import "@fontsource/schibsted-grotesk/latin-400.css";
+@import "./tokens.css";
+
+body {
+  background-color: var(--paper);
+  font-family: var(--face);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+#flex {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 20rem;
+}
+
+#where {
+  font-size: 0.65rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--quiet);
+}
+
+/* the track keeps its row whether or not anything is running, so nothing
+   below it moves when a read finishes */
+#bar {
+  height: 2px;
+  margin-top: -0.4rem;
+  overflow: hidden;
+  background-color: transparent;
+}
+
+#bar.busy {
+  background-color: var(--raised);
+}
+
+#bar-run {
+  display: none;
+  height: 100%;
+  width: 35%;
+  background-color: var(--ink);
+}
+
+#bar.busy #bar-run {
+  display: block;
+  animation: sweep 1.1s cubic-bezier(0.4, 0, 0.3, 1) infinite;
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(286%);
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+label {
+  font-size: 0.75rem;
+  color: var(--label);
+}
+
+input {
+  outline: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 4px 0 5px;
+  margin: 0 0 -1px 0;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: transparent;
+  font-family: var(--face);
+  font-size: 0.8125rem;
+  line-height: 1.4375em;
+  color: var(--ink);
+}
+
+input:focus {
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: -2px;
+}
+
+input:disabled {
+  color: var(--spent);
+  border-bottom-style: dotted;
+}
+
+#submit {
+  background-color: black;
+  padding: 0.4rem;
+  color: white;
+  width: 100%;
+  text-transform: uppercase;
+  border: 0;
+  font-family: var(--face);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.045em;
+  cursor: pointer;
+}
+
+#submit:disabled {
+  background-color: var(--spent);
+  cursor: default;
+}
+
+#error {
+  font-size: 0.75rem;
+  color: var(--alarm);
+}

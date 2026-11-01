@@ -1,0 +1,16 @@
+/* the same tones and faces as tokens.ts, for stylesheets that can't import it;
+   tokens.spec.ts checks the two still agree */
+:root {
+  --paper: rgb(250, 246, 240);
+  --ink: #1a1a1a;
+  --label: #4a443c;
+  --quiet: #6b6257;
+  --spent: #7d756a;
+  --rule: #cdbfa9;
+  --line: rgba(0, 0, 0, 0.42);
+  --raised: #ece3d6;
+  --tint: #f4eee4;
+  --alarm: #a8200f;
+  --face: "Schibsted Grotesk", Helvetica, Arial, sans-serif;
+  --mono: "Noto Mono", monospace;
+}

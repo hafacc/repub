@@ -25,13 +25,13 @@ import {
   useState,
 } from "react";
 import { type CssProblem, cssProblems, malformed } from "../src/css-check";
+import { MONO, PAPER, QUIET, TINT } from "../src/tokens";
 
 // how long typing has to stop before valid css is stored
 const SAVE_DELAY = 500;
-const MONO = '"Noto Mono", monospace';
 // the page's own tint, so the generated half reads as part of the page rather
 // than as text waiting to be typed in
-const FROZEN_BACKGROUND = "#f4eee4";
+const FROZEN_BACKGROUND = TINT;
 const FROZEN_TEXT = "#8d8578";
 
 const highlighting = HighlightStyle.define([
@@ -42,7 +42,7 @@ const highlighting = HighlightStyle.define([
   },
   {
     tag: [tags.number, tags.unit, tags.string, tags.atom, tags.literal],
-    color: "#6b6257",
+    color: QUIET,
   },
   { tag: tags.punctuation, color: "#9b9b9b" },
 ]);
@@ -93,7 +93,7 @@ const editableExtensions: Extension = [
     ),
   ),
   EditorView.theme({
-    "&": { backgroundColor: "#fff" },
+    "&": { backgroundColor: PAPER },
     ".cm-content": { minHeight: "96px", paddingTop: "6px" },
   }),
 ];
@@ -230,7 +230,7 @@ export default function CssEditor({
         sx={{
           border: "1px solid",
           borderColor: "divider",
-          backgroundColor: "#fff",
+          backgroundColor: PAPER,
           maxHeight: "420px",
           overflow: "auto",
         }}

@@ -6,6 +6,8 @@
     <title>reMarkable ePub Options</title>
     <link rel="icon" href="public/repub.svg" />
     <style>
+      /* the tones and the face come from src/tokens.css, which the bundle
+         pulls in; these are what the page needs before it loads */
       html {
         overflow-y: scroll;
         background-color: rgb(250, 246, 240);
@@ -13,6 +15,15 @@
 
       body {
         margin: 0;
+        font-family: "Schibsted Grotesk", system-ui, sans-serif;
+      }
+
+      /* native controls don't take the page's face on their own */
+      input,
+      button,
+      select,
+      textarea {
+        font-family: inherit;
       }
     </style>
   </head>

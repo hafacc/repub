@@ -76,14 +76,57 @@ import CheckboxSelection from "./checkbox-selection";
 import CssEditor from "./css-editor";
 import OptionRow from "./option-row";
 
+// the page is set on paper, not on white, so every field and menu sits on the
+// same tone the window does
+const PAPER = "rgb(250, 246, 240)";
+
+const FACE = "'Schibsted Grotesk', Helvetica, Arial, sans-serif";
+
 const theme = createTheme({
   palette: {
     primary: {
       main: "#000",
     },
+    background: {
+      default: PAPER,
+      paper: PAPER,
+    },
   },
   shape: {
     borderRadius: 0,
+  },
+  // the scale MUI ships is cut for Roboto: its steps are far apart and it
+  // tracks the small sizes out, neither of which suits this face
+  typography: {
+    fontFamily: FACE,
+    h4: { fontSize: "1.75rem", fontWeight: 600, letterSpacing: "-0.015em" },
+    h5: { fontSize: "1.25rem", fontWeight: 600, letterSpacing: "-0.01em" },
+    body1: { fontSize: "0.9375rem", lineHeight: 1.5, letterSpacing: 0 },
+    body2: { fontSize: "0.875rem", lineHeight: 1.5, letterSpacing: 0 },
+    caption: { fontSize: "0.75rem", lineHeight: 1.45, letterSpacing: 0 },
+    subtitle1: { letterSpacing: 0 },
+    subtitle2: { letterSpacing: 0 },
+    button: {
+      fontSize: "0.8125rem",
+      fontWeight: 500,
+      letterSpacing: "0.045em",
+    },
+  },
+  // anything mui hangs off the end of the document is outside the page's own
+  // styles, and native controls don't take an inherited face, so both are
+  // told the family outright
+  components: {
+    MuiPopover: { styleOverrides: { paper: { fontFamily: FACE } } },
+    MuiMenu: { styleOverrides: { paper: { fontFamily: FACE } } },
+    MuiTooltip: { styleOverrides: { tooltip: { fontFamily: FACE } } },
+    MuiAutocomplete: {
+      styleOverrides: {
+        paper: { fontFamily: FACE },
+        listbox: { fontFamily: FACE },
+        option: { fontFamily: FACE, fontSize: "0.875rem" },
+        noOptions: { fontFamily: FACE, fontSize: "0.875rem" },
+      },
+    },
   },
 });
 
