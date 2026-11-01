@@ -1,7 +1,7 @@
 {
   "name": "rePub",
   "description": "reMarkable ePub",
-  "version": "6.2.0",
+  "version": "6.2.1",
   "manifest_version": 3,
   "permissions": [
     "contextMenus",
