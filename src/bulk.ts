@@ -1,5 +1,6 @@
 import { fromByteArray } from "base64-js";
 import { pageCapture } from "./capture";
+import { type Read, readPage } from "./details";
 import { showFailed, showProgress } from "./icon";
 import type { EpubOptions, Options, UploadOptions } from "./options";
 import { steps, within } from "./progress";
@@ -34,20 +35,38 @@ export type PageState =
   | { kind: "finished" }
   | { kind: "failed"; error: string };
 
+/** what the list holds for one page, once it's switched on */
+export interface Ready {
+  /** the page as captured when it was switched on, if it still is */
+  mhtml?: ArrayBuffer;
+  /** the title for the document, or empty to keep the page's own */
+  title: string;
+  /** the author for the document, or empty to keep the page's own */
+  author: string;
+  /** the tags to upload the document under */
+  tags: string[];
+}
+
 /** the browser work an export does, so tests can stand in for it */
 interface ExportEnv {
   wake: (tabId: number) => Promise<void>;
   capture: (tabId: number) => Promise<ArrayBuffer>;
+  read: (tabId: number, opts: EpubOptions) => Promise<Read>;
   convert: (
     mhtml: ArrayBuffer,
     opts: EpubOptions,
-    extra?: { onProgress?: (portion: number) => void },
+    extra?: {
+      title?: string;
+      author?: string;
+      onProgress?: (portion: number) => void;
+    },
   ) => Promise<{ epub: Uint8Array; title?: string }>;
   send: (
     epub: Uint8Array,
     title: string,
     deviceToken: string,
     opts: UploadOptions,
+    extra: { tags: string[] },
   ) => Promise<void>;
   save: (epub: Uint8Array, filename: string, saveAs: boolean) => Promise<void>;
   mark: (tabId: number, state: PageState) => Promise<void>;
@@ -187,14 +206,36 @@ async function downloadEpub(
 }
 
 /**
+ * wake a page and read the title and author off it
+ *
+ * The capture comes back with them so that exporting the page afterwards
+ * doesn't read it a second time. `report` is told as each part starts, so a
+ * page being read can show the same ring an export does.
+ */
+export async function preparePage(
+  page: PageTab,
+  opts: Options,
+  report: (state: PageState) => void = () => {},
+  env: Partial<Pick<ExportEnv, "wake" | "read">> = {},
+): Promise<Read> {
+  const { wake = wakeTab, read = readPage } = env;
+  await using _permit = await room.lock();
+  report({ kind: "running", ...within(stage.wake, 0) });
+  await wake(page.tabId);
+  report({ kind: "running", ...within(stage.capture, 0) });
+  return await read(page.tabId, opts);
+}
+
+/**
  * convert one open tab and either upload or download it
  *
- * `name` is the filename the user typed, which stands in for the page's own
- * title when they gave one; the epub itself keeps the title read off the page.
+ * A page read when it was switched on is converted from that reading, and is
+ * neither woken nor captured again. The title in `ready` is what the document
+ * is called and what its file is named; empty keeps the page's own.
  */
 export async function exportPage(
   page: PageTab,
-  name: string | undefined,
+  ready: Ready,
   opts: Options,
   report: (state: PageState) => void,
   env: Partial<ExportEnv> = {},
@@ -211,34 +252,32 @@ export async function exportPage(
   if (stop) {
     throw new Error(stop);
   }
-  // an emptied field is no name at all
-  const given = name?.trim() || undefined;
+  // an emptied field asks for the page's own
+  const given = ready.title.trim() || undefined;
+  const author = ready.author.trim() || undefined;
 
   await using _permit = await room.lock();
-  report({ kind: "running", ...within(stage.wake, 0) });
-  await wake(page.tabId);
-  report({ kind: "running", ...within(stage.capture, 0) });
-  const mhtml = await capture(page.tabId);
+  let mhtml = ready.mhtml;
+  if (mhtml === undefined) {
+    report({ kind: "running", ...within(stage.wake, 0) });
+    await wake(page.tabId);
+    report({ kind: "running", ...within(stage.capture, 0) });
+    mhtml = await capture(page.tabId);
+  }
   report({ kind: "running", ...within(stage.render, 0) });
-  const { epub, title = given ?? "missing title" } = await convert(
-    mhtml,
-    rest,
-    {
-      onProgress: (portion) => {
-        report({ kind: "running", ...within(stage.render, portion) });
-      },
+  const { epub, title = "missing title" } = await convert(mhtml, rest, {
+    title: given,
+    author,
+    onProgress: (portion) => {
+      report({ kind: "running", ...within(stage.render, portion) });
     },
-  );
+  });
   report({ kind: "running", ...within(stage.send, 0) });
 
   if (outputStyle === "download") {
-    await save(
-      epub,
-      `${safeFilename(given ?? title)}.epub`,
-      downloadAsk && given === undefined,
-    );
+    await save(epub, `${safeFilename(title)}.epub`, downloadAsk);
   } else {
-    await send(epub, title, deviceToken, rest);
+    await send(epub, title, deviceToken, rest, { tags: [...ready.tags] });
   }
   report({ kind: "finished" });
 }
@@ -246,7 +285,7 @@ export async function exportPage(
 /** export every page, reporting each one as it goes */
 export async function exportPages(
   pages: readonly PageTab[],
-  names: ReadonlyMap<number, string>,
+  ready: ReadonlyMap<number, Ready>,
   opts: Options,
   report: (tabId: number, state: PageState) => void,
   env: Partial<ExportEnv> = {},
@@ -261,7 +300,12 @@ export async function exportPages(
         });
       };
       try {
-        await exportPage(page, names.get(page.tabId), opts, show, env);
+        const detail = ready.get(page.tabId) ?? {
+          title: "",
+          author: "",
+          tags: [],
+        };
+        await exportPage(page, detail, opts, show, env);
       } catch (ex) {
         show({ kind: "failed", error: errString(ex) });
       }

@@ -563,14 +563,8 @@ export function resolveByline(
   }
 }
 
-/** update img src's with srcset information */
-export async function alter(
-  doc: Document,
-  match: UrlMatcher,
-  { authorByline, url, shrinkGlyphs, fontName, ...opts }: Options,
-  summarize: boolean = true,
-): Promise<Altered> {
-  const [cover] = match(coverUrls(doc)) ?? [];
+/** the authors the page names outright, when those are to be preferred */
+function declaredAuthors(doc: Document, authorByline: boolean): string | null {
   const authors = authorByline
     ? [...doc.querySelectorAll(`meta[property="article:author"]`)]
         .filter(
@@ -580,7 +574,43 @@ export async function alter(
         .filter((content) => content.length && !URL.canParse(content))
         .map((content) => content.replace(/,\s*/g, ", "))
     : [];
-  const author = authors.length ? authors.join(", ") : null;
+  return authors.length ? authors.join(", ") : null;
+}
+
+/** what a render would put on the cover, without rendering anything */
+export interface Metadata {
+  title?: string;
+  author?: string;
+}
+
+/**
+ * read the title and author a render of `doc` would come up with
+ *
+ * This is the same reading {@link alter | `alter`} does, so what it finds is
+ * what the epub would have carried had nobody been asked.
+ */
+export function readMetadata(
+  doc: Document,
+  {
+    url,
+    authorByline,
+    filterLinks,
+  }: { url: string; authorByline: boolean; filterLinks: boolean },
+): Metadata {
+  const declared = declaredAuthors(doc, authorByline);
+  const { title, byline } = summarizeDoc(doc, url, filterLinks);
+  return { title, author: resolveByline(declared, byline) };
+}
+
+/** update img src's with srcset information */
+export async function alter(
+  doc: Document,
+  match: UrlMatcher,
+  { authorByline, url, shrinkGlyphs, fontName, ...opts }: Options,
+  summarize: boolean = true,
+): Promise<Altered> {
+  const [cover] = match(coverUrls(doc)) ?? [];
+  const author = declaredAuthors(doc, authorByline);
 
   const { content, title, byline } = summarize
     ? summarizeDoc(doc, url, opts.filterLinks)

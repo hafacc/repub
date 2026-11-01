@@ -3,6 +3,7 @@ import type { DeviceModel, PutOptions } from "rmapi-js";
 import type {
   InitMessage,
   Message,
+  MetaMessage,
   PartMessage,
   Response,
   TrimMessage,
@@ -126,6 +127,40 @@ export async function render(
     },
   );
   return { epub: toByteArray(collected.join("")), title: parsedTitle };
+}
+
+/** the title and author a render of this page would come up with */
+export interface Metadata {
+  title?: string;
+  author?: string;
+}
+
+/**
+ * read the title and author off a page's html
+ *
+ * The html alone is enough, so this costs a parse rather than a whole
+ * conversion, and the answer is what a render of the same page would use.
+ */
+export async function readMetadata(
+  html: Uint8Array,
+  url: string,
+  { authorByline, filterLinks }: EpubOptions,
+): Promise<Metadata> {
+  return await exchange<Metadata>(
+    (numParts): MetaMessage => ({
+      type: "meta",
+      numParts,
+      url,
+      authorByline,
+      filterLinks,
+    }),
+    html,
+    (message, resolve) => {
+      if (message.type === "meta") {
+        resolve({ title: message.title, author: message.author });
+      }
+    },
+  );
 }
 
 /** measure a pdf's margins for `device`, returning the zoom that hides them */

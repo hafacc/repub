@@ -5,6 +5,14 @@ export function sleep(timeout: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, timeout));
 }
 
+/** a wait that ran out before what it was waiting on arrived */
+export class TimedOut extends Error {
+  constructor(msg: string = "timeout") {
+    super(msg);
+    this.name = "TimedOut";
+  }
+}
+
 /**
  * timeout after x milliseconds
  */
@@ -16,7 +24,7 @@ export async function timeout<T>(
   return await Promise.race([
     prom,
     sleep(timeout).then(() => {
-      throw new Error(msg);
+      throw new TimedOut(msg);
     }),
   ]);
 }
@@ -108,4 +116,18 @@ export function errString(err: unknown): string {
   } else {
     return "unknown object error";
   }
+}
+
+/** the tags in `text`, which names them one after another, separated by commas */
+export function parseTags(text: string): string[] {
+  return [
+    ...Iterator.from(text.split(","))
+      .map((tag) => tag.trim())
+      .filter((tag) => !!tag.length),
+  ];
+}
+
+/** `tags` as one line again, for a field that holds them all together */
+export function joinTags(tags: readonly string[]): string {
+  return tags.join(", ");
 }
