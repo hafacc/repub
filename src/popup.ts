@@ -1,3 +1,4 @@
+import "./popup.css";
 import type {
   ConvertRequest,
   DetailsRequest,

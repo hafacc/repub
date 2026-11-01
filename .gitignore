@@ -8,6 +8,7 @@ node_modules
 #############
 /*.js
 /*.js.map
+/*.css
 !/*.config.js
 /*.d.ts
 /*.epub

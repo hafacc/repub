@@ -17,6 +17,7 @@
         "@fontsource/eb-garamond": "^5.3.0",
         "@fontsource/noto-sans": "^5.3.0",
         "@fontsource/noto-serif": "^5.3.0",
+        "@fontsource/schibsted-grotesk": "^5.3.0",
         "@lezer/highlight": "^1.2.5",
         "@mui/icons-material": "^9.5.0",
         "@mui/material": "^9.5.0",
@@ -165,6 +166,8 @@
     "@fontsource/noto-sans": ["@fontsource/noto-sans@5.3.0", "", {}, "sha512-fBCog2PY7DiVVTEEqtI/Qdinx/knobHYfoGpjFXdfBX5RoJaBp1Prw2G75p0OIsdlMZg3cLo0c+YbIUYOxnQJw=="],
 
     "@fontsource/noto-serif": ["@fontsource/noto-serif@5.3.0", "", {}, "sha512-ZrMzjuQlBIcw+qma1slZQdU3YDJvrjLG+9CWU1bxSf3YTkucwqd3EYa/Kfo4Ts19w8IMTGAmtOE3d6wWlgnBtA=="],
+
+    "@fontsource/schibsted-grotesk": ["@fontsource/schibsted-grotesk@5.3.0", "", {}, "sha512-9k+Fd2eg7umKxI2JV2HtDcOkXEM0iJx0u4Iu1b+QHikVU8Sl/MtozJ/mtZfsltR6xnVGSQjpcxXQeJPW0KGpIA=="],
 
     "@lezer/common": ["@lezer/common@1.5.3", "", {}, "sha512-H0iErY4e43LpXbYDyBci5W4v/RwTgGV3YzYOlJPiGZ8RY8w51kVE+xLn1tg3Z6UmSfyETvtsUK3r7YsgDQEI7Q=="],
 
