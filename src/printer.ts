@@ -39,7 +39,7 @@ function margin(device: DeviceModel, margins: number): number {
 }
 
 /**
- * what chrome's print dialog is told this printer can do
+ * what chrome's print dialog is told this printer can do, in cdd format
  *
  * The papers are the reMarkable screens, so a printed page fills the tablet
  * instead of arriving letterboxed. The print dialog only offers its own four
@@ -49,7 +49,7 @@ function margin(device: DeviceModel, margins: number): number {
 function capabilities(
   device: DeviceModel,
   margins: number,
-): chrome.printerProvider.PrinterCapabilities {
+): Record<string, unknown> {
   const edge = margin(device, margins);
   const description = {
     version: "1",
@@ -83,9 +83,7 @@ function capabilities(
       },
     },
   };
-  // chrome wants the description itself; the typings wrap it in a key it never
-  // reads
-  return description as unknown as chrome.printerProvider.PrinterCapabilities;
+  return description;
 }
 
 async function printToRemarkable({
