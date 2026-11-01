@@ -9,11 +9,10 @@ import {
   useCallback,
   useState,
 } from "react";
-import { FaChevronDown, FaChevronUp } from "react-icons/fa6";
-
 // a warm tint rather than a rule, so nothing is drawn until the pointer is on
 // the row; an open caption keeps it, to show which row it belongs to
-const TINT = "#f4eee4";
+import { TINT } from "../src/tokens";
+import { ChevronDown, ChevronUp } from "./icons";
 
 /**
  * one option: what it's called, what sets it, and what it does on request
@@ -99,7 +98,7 @@ export default function OptionRow({
           // no handler of its own: the click it raises, by pointer or by
           // keyboard, is the one the row is already listening for
           <IconButton size="small" aria-label={title} aria-expanded={open}>
-            {open ? <FaChevronUp /> : <FaChevronDown />}
+            {open ? <ChevronUp /> : <ChevronDown />}
           </IconButton>
         ) : null}
       </Box>

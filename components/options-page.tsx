@@ -1,5 +1,4 @@
 import styled from "@emotion/styled";
-import ContentPasteIcon from "@mui/icons-material/ContentPaste";
 import Alert, { type AlertColor } from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -9,13 +8,11 @@ import IconButton from "@mui/material/IconButton";
 import Input from "@mui/material/Input";
 import InputAdornment from "@mui/material/InputAdornment";
 import Link from "@mui/material/Link";
-import OutlinedInput from "@mui/material/OutlinedInput";
 import Snackbar from "@mui/material/Snackbar";
 import Stack from "@mui/material/Stack";
-import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { ThemeProvider } from "@mui/material/styles";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
-import TextField from "@mui/material/TextField";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
@@ -28,31 +25,10 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { useDropzone } from "react-dropzone";
-import {
-  FaA,
-  FaAlignJustify,
-  FaAlignLeft,
-  FaBan,
-  FaBars,
-  FaCheck,
-  FaEquals,
-  FaLock,
-  FaQuestion,
-  FaRegFile,
-  FaRegFileImage,
-  FaRegFileLines,
-  FaRegImage,
-  FaRegImages,
-  FaRegRectangleXmark,
-  FaRegSquare,
-  FaTableCells,
-  FaTableCellsLarge,
-  FaTriangleExclamation,
-  FaXmark,
-} from "react-icons/fa6";
 import { type DeviceModel, type PutOptions, register } from "rmapi-js";
 import repubPlain from "../public/repub-plain.svg";
 import { optionCss } from "../src/css";
@@ -68,67 +44,39 @@ import {
 } from "../src/options";
 import { analyzePdfMargins } from "../src/pdf-trim";
 import { render } from "../src/render";
+import { knownTags } from "../src/tags";
 import { uploadEpub, uploadPdf } from "../src/upload";
-import { sleep } from "../src/utils";
+import { joinTags, parseTags, sleep } from "../src/utils";
 import BulkOptions from "./bulk-options";
 import ButtonSelection from "./button-selection";
 import CheckboxSelection from "./checkbox-selection";
 import CssEditor from "./css-editor";
+import {
+  AlignJustify,
+  AlignLeft,
+  Ban,
+  CellsFour,
+  CellsNine,
+  CellsOne,
+  Check,
+  Clipboard,
+  Cross,
+  Image,
+  ImageOff,
+  Images,
+  Letter,
+  LinesThree,
+  LinesTwo,
+  Lock,
+  Page,
+  PageImage,
+  PageLines,
+  Question,
+  Warning,
+} from "./icons";
 import OptionRow from "./option-row";
-
-// the page is set on paper, not on white, so every field and menu sits on the
-// same tone the window does
-const PAPER = "rgb(250, 246, 240)";
-
-const FACE = "'Schibsted Grotesk', Helvetica, Arial, sans-serif";
-
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: "#000",
-    },
-    background: {
-      default: PAPER,
-      paper: PAPER,
-    },
-  },
-  shape: {
-    borderRadius: 0,
-  },
-  // the scale MUI ships is cut for Roboto: its steps are far apart and it
-  // tracks the small sizes out, neither of which suits this face
-  typography: {
-    fontFamily: FACE,
-    h4: { fontSize: "1.75rem", fontWeight: 600, letterSpacing: "-0.015em" },
-    h5: { fontSize: "1.25rem", fontWeight: 600, letterSpacing: "-0.01em" },
-    body1: { fontSize: "0.9375rem", lineHeight: 1.5, letterSpacing: 0 },
-    body2: { fontSize: "0.875rem", lineHeight: 1.5, letterSpacing: 0 },
-    caption: { fontSize: "0.75rem", lineHeight: 1.45, letterSpacing: 0 },
-    subtitle1: { letterSpacing: 0 },
-    subtitle2: { letterSpacing: 0 },
-    button: {
-      fontSize: "0.8125rem",
-      fontWeight: 500,
-      letterSpacing: "0.045em",
-    },
-  },
-  // anything mui hangs off the end of the document is outside the page's own
-  // styles, and native controls don't take an inherited face, so both are
-  // told the family outright
-  components: {
-    MuiPopover: { styleOverrides: { paper: { fontFamily: FACE } } },
-    MuiMenu: { styleOverrides: { paper: { fontFamily: FACE } } },
-    MuiTooltip: { styleOverrides: { tooltip: { fontFamily: FACE } } },
-    MuiAutocomplete: {
-      styleOverrides: {
-        paper: { fontFamily: FACE },
-        listbox: { fontFamily: FACE },
-        option: { fontFamily: FACE, fontSize: "0.875rem" },
-        noOptions: { fontFamily: FACE, fontSize: "0.875rem" },
-      },
-    },
-  },
-});
+import TagField from "./tag-field";
+import theme from "./theme";
 
 const unknownOpts: Partial<Options> = Object.fromEntries(
   Object.entries(defaultOptions).map(([key]) => [key, undefined]),
@@ -264,7 +212,7 @@ function DropOverlay({ reject }: { reject: boolean }): ReactElement {
       }}
     >
       <Stack spacing={2} sx={{ alignItems: "center" }}>
-        {reject ? <FaBan size={36} /> : <FaRegFile size={36} />}
+        {reject ? <Ban size={36} /> : <Page size={36} />}
         <Typography variant="h5">
           {reject ? "Unsupported file type" : "Drop to upload to reMarkable"}
         </Typography>
@@ -359,11 +307,7 @@ function SignIn({
             edge="end"
             disabled={registering}
           >
-            {registering ? (
-              <CircularProgress size={16} />
-            ) : (
-              <ContentPasteIcon />
-            )}
+            {registering ? <CircularProgress size={16} /> : <Clipboard />}
           </IconButton>
         </Tooltip>
       </InputAdornment>
@@ -385,7 +329,7 @@ function SignIn({
           authorizing connection to your reMarkable account, then paste it
           below, or click the clipboard paste icon.
         </Typography>
-        <OutlinedInput
+        <Input
           value={incCode}
           disabled={registering}
           onChange={changeAuth}
@@ -616,9 +560,9 @@ function ResolutionSelector({
         setOpts({ tableResolution: parseInt(val, 10) });
       }}
       selections={[
-        { val: "1", icon: <FaRegSquare />, label: "1×" },
-        { val: "3", icon: <FaTableCellsLarge />, label: "3×" },
-        { val: "9", icon: <FaTableCells />, label: "9×" },
+        { val: "1", icon: <CellsOne />, label: "1×" },
+        { val: "3", icon: <CellsFour />, label: "3×" },
+        { val: "9", icon: <CellsNine />, label: "9×" },
       ]}
       title="Table Resolution"
       caption="When converting tables to images, higher resolution tables will
@@ -646,17 +590,17 @@ function ShrinkGlyphsSelector({
       selections={[
         {
           val: "off",
-          icon: <FaBan />,
+          icon: <Ban />,
           label: "Leave alone",
         },
         {
           val: "dynamic",
-          icon: <FaA />,
+          icon: <Letter />,
           label: "Fit the font",
         },
         {
           val: "robust",
-          icon: <FaLock />,
+          icon: <Lock />,
           label: "Fit any font",
         },
       ]}
@@ -688,17 +632,17 @@ function EpubOptions({
         selections={[
           {
             val: "keep",
-            icon: <FaRegImages />,
+            icon: <Images />,
             label: "Keep all",
           },
           {
             val: "filter",
-            icon: <FaRegImage />,
+            icon: <Image />,
             label: "First only",
           },
           {
             val: "strip",
-            icon: <FaRegRectangleXmark />,
+            icon: <ImageOff />,
             label: "Remove all",
           },
         ]}
@@ -895,10 +839,10 @@ function CoverPageNumberSelector({
   );
 }
 
-const MarginsSmall = styled(FaAlignJustify)`
+const MarginsSmall = styled(AlignJustify)`
   transform: scaleX(1.25);
 `;
-const MarginsLarge = styled(FaAlignJustify)`
+const MarginsLarge = styled(AlignJustify)`
   transform: scaleX(0.75);
 `;
 
@@ -919,7 +863,7 @@ function MarginSelector({
       }}
       selections={[
         { val: "50", icon: <MarginsSmall />, label: "Small" },
-        { val: "125", icon: <FaAlignJustify />, label: "Medium" },
+        { val: "125", icon: <AlignJustify />, label: "Medium" },
         { val: "225", icon: <MarginsLarge />, label: "Large" },
       ]}
       title="Page Margins"
@@ -929,19 +873,19 @@ function MarginSelector({
   );
 }
 
-const FontSizeExtraSmall = styled(FaA)`
+const FontSizeExtraSmall = styled(Letter)`
   transform: scale(0.7);
 `;
-const FontSizeSmall = styled(FaA)`
+const FontSizeSmall = styled(Letter)`
   transform: scale(0.8);
 `;
-const FontSizeLarge = styled(FaA)`
+const FontSizeLarge = styled(Letter)`
   transform: scale(1.2);
 `;
-const FontSizeExtraLarge = styled(FaA)`
+const FontSizeExtraLarge = styled(Letter)`
   transform: scale(1.4);
 `;
-const FontSizeHuge = styled(FaA)`
+const FontSizeHuge = styled(Letter)`
   transform: scale(1.6);
 `;
 
@@ -973,7 +917,7 @@ function TextScaleSelector({
         },
         {
           val: "1.0",
-          icon: <FaA />,
+          icon: <Letter />,
           label: "100%",
         },
         {
@@ -1017,17 +961,17 @@ function LineHeightSelector({
       selections={[
         {
           val: "100",
-          icon: <FaAlignJustify />,
+          icon: <AlignJustify />,
           label: "100%",
         },
         {
           val: "120",
-          icon: <FaBars />,
+          icon: <LinesThree />,
           label: "120%",
         },
         {
           val: "200",
-          icon: <FaEquals />,
+          icon: <LinesTwo />,
           label: "200%",
         },
       ]}
@@ -1056,12 +1000,12 @@ function TextAlignmentSelector({
       selections={[
         {
           val: "left",
-          icon: <FaAlignLeft />,
+          icon: <AlignLeft />,
           label: "Left",
         },
         {
           val: "justify",
-          icon: <FaAlignJustify />,
+          icon: <AlignJustify />,
           label: "Justify",
         },
       ]}
@@ -1090,17 +1034,17 @@ function ViewBackgroundFilterSelector({
       selections={[
         {
           val: "fullpage",
-          icon: <FaRegFileLines />,
+          icon: <PageLines />,
           label: "Full page",
         },
         {
           val: "adaptive",
-          icon: <FaRegFile />,
+          icon: <Page />,
           label: "Adaptive",
         },
         {
           val: "off",
-          icon: <FaRegFileImage />,
+          icon: <PageImage />,
           label: "Off",
         },
       ]}
@@ -1193,16 +1137,32 @@ function TagsSelector({
   setOpts: SetOptions;
   disabled?: boolean;
 }): ReactElement {
+  const [known, setKnown] = useState<string[]>([]);
+  const chosen = useMemo(() => parseTags(tags ?? ""), [tags]);
+
+  useEffect(() => {
+    (async () => {
+      const options = await getOptions();
+      if (options.deviceToken) {
+        setKnown(await knownTags(options.deviceToken, options));
+      }
+    })().catch((ex: unknown) => {
+      console.warn("couldn't list the tablet's tags", ex);
+    });
+  }, []);
+
   const control = (
-    <TextField
-      variant="standard"
-      value={tags ?? ""}
-      onChange={(evt) => {
-        setOpts({ tags: evt.target.value });
-      }}
-      disabled={disabled}
-      sx={{ width: "260px" }}
-    />
+    <Box sx={{ width: "260px" }}>
+      <TagField
+        id="default-tags"
+        tags={chosen}
+        known={known}
+        disabled={disabled}
+        onChange={(picked) => {
+          setOpts({ tags: joinTags(picked) });
+        }}
+      />
+    </Box>
   );
   return (
     <OptionRow
@@ -1337,11 +1297,11 @@ function UrlField({
 }): ReactElement {
   const modified = value !== undefined && value !== defaultValue;
   const permIcon = !modified ? null : permitted === null ? (
-    <FaQuestion />
+    <Question />
   ) : permitted ? (
-    <FaCheck />
+    <Check />
   ) : (
-    <FaTriangleExclamation />
+    <Warning />
   );
   const control = (
     <Input
@@ -1359,7 +1319,7 @@ function UrlField({
               onClick={() => onChange(defaultValue)}
               edge="end"
             >
-              <FaXmark />
+              <Cross />
             </IconButton>
           </InputAdornment>
         ) : undefined

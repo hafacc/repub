@@ -13,7 +13,6 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { FaGlobe, FaRegSquare } from "react-icons/fa6";
 import {
   blocker,
   byWindow,
@@ -29,6 +28,7 @@ import { getOptions, type Options } from "../src/options";
 import { reach } from "../src/progress";
 import { knownTags } from "../src/tags";
 import { errString, parseTags, TimedOut } from "../src/utils";
+import { CellsOne, Globe } from "./icons";
 import TagField from "./tag-field";
 
 /** what the list holds for one page that is switched on */
@@ -146,7 +146,7 @@ function Favicon({ page }: { page: PageTab }): ReactElement {
   } else {
     return (
       <Box sx={{ display: "flex", color: "rgba(0, 0, 0, 0.3)" }}>
-        {page.convertible ? <FaGlobe /> : <FaRegSquare />}
+        {page.convertible ? <Globe /> : <CellsOne />}
       </Box>
     );
   }
