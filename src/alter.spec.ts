@@ -7,6 +7,7 @@ import {
   exactMatch,
   type MimeData,
   parseSrcset,
+  readMetadata,
   resolveByline,
   shrinkSubstitutes,
   unwrapLinks,
@@ -290,4 +291,49 @@ test("shrinkSubstitutes() still shrinks a short line with a stray symbol", () =>
   const doc = parseBody(`<li>A → B</li>`);
   shrinkSubstitutes(doc.body, substituted("dynamic", "reMarkable Serif Small"));
   expect(doc.querySelector("span.repub-substitute")?.textContent).toBe("→");
+});
+
+function parsePage(head: string, body: string): Document {
+  const { window } = new JSDOM(
+    `<!doctype html><html><head>${head}</head><body>${body}</body></html>`,
+    { url: "https://example.com/a-page" },
+  );
+  globalThis.HTMLMetaElement = window.HTMLMetaElement;
+  globalThis.DOMParser = window.DOMParser;
+  globalThis.Node = window.Node;
+  globalThis.NodeFilter = window.NodeFilter;
+  globalThis.Element = window.Element;
+  globalThis.HTMLElement = window.HTMLElement;
+  return window.document as unknown as Document;
+}
+
+const article = "<p>Words that make up the body of the article.</p>".repeat(12);
+
+test("readMetadata() reads the title and author off a page", () => {
+  const doc = parsePage(
+    `<title>What the page is called - Some Site</title>
+     <meta name="author" content="Ann Alpha">`,
+    `<article><h1>What the page is called</h1>${article}</article>`,
+  );
+  expect(
+    readMetadata(doc, {
+      url: "https://example.com/a-page",
+      authorByline: true,
+      filterLinks: true,
+    }),
+  ).toEqual({ title: "What the page is called", author: "Ann Alpha" });
+});
+
+test("readMetadata() comes back with no author when the page names none", () => {
+  const doc = parsePage(
+    "<title>What the page is called</title>",
+    `<article><h1>What the page is called</h1>${article}</article>`,
+  );
+  const { title, author } = readMetadata(doc, {
+    url: "https://example.com/a-page",
+    authorByline: true,
+    filterLinks: true,
+  });
+  expect(title).toBe("What the page is called");
+  expect(author).toBeUndefined();
 });

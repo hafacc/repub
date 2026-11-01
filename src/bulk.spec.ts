@@ -7,6 +7,8 @@ import {
   listable,
   type PageState,
   type PageTab,
+  preparePage,
+  type Ready,
   stage,
 } from "./bulk";
 import { defaultOptions, type Options } from "./options";
@@ -26,13 +28,24 @@ function fakeEnv(overrides: FakeEnv = {}): FakeEnv {
   return {
     wake: async () => {},
     capture: async () => new ArrayBuffer(4),
-    convert: async () => ({ epub: new Uint8Array([1]), title: "parsed title" }),
+    read: async () => ({
+      mhtml: new ArrayBuffer(4),
+      title: "read title",
+      author: "read author",
+    }),
+    convert: async (_, __, extra) => ({
+      epub: new Uint8Array([1]),
+      title: extra?.title ?? "parsed title",
+    }),
     send: async () => {},
     save: async () => {},
     mark: async () => {},
     ...overrides,
   };
 }
+
+/** a page switched on with nothing typed for it and nothing read of it */
+const bare: Ready = { title: "", author: "", tags: [] };
 
 function collect(): [PageState[], (state: PageState) => void] {
   const states: PageState[] = [];
@@ -125,7 +138,7 @@ test("upload a page", async () => {
 
   await exportPage(
     page,
-    undefined,
+    bare,
     opts,
     report,
     fakeEnv({
@@ -155,7 +168,7 @@ test("a render reports its own progress", async () => {
 
   await exportPage(
     page,
-    undefined,
+    bare,
     opts,
     report,
     fakeEnv({
@@ -176,32 +189,61 @@ test("a render reports its own progress", async () => {
 test("upload needs a token", async () => {
   const [states, report] = collect();
   await expect(
-    exportPage(page, undefined, defaultOptions, report, fakeEnv()),
+    exportPage(page, bare, defaultOptions, report, fakeEnv()),
   ).rejects.toThrow("must be authenticated");
   expect(states).toEqual([]);
 });
 
-test("a filename doesn't retitle the epub", async () => {
+test("the title typed is the one that goes out", async () => {
   const opts: Options = { ...defaultOptions, deviceToken: "token" };
   const sent: string[] = [];
+  const titled: (string | undefined)[] = [];
   const [, report] = collect();
 
   await exportPage(
     page,
-    "what I call it",
+    { ...bare, title: "what I call it", author: "who wrote it" },
     opts,
     report,
     fakeEnv({
+      convert: async (_, __, extra) => {
+        titled.push(extra?.title, extra?.author);
+        return { epub: new Uint8Array([1]), title: extra?.title };
+      },
       send: async (_, title) => {
         sent.push(title);
       },
     }),
   );
 
-  expect(sent).toEqual(["parsed title"]);
+  expect(titled).toEqual(["what I call it", "who wrote it"]);
+  expect(sent).toEqual(["what I call it"]);
 });
 
-test("download under the name given", async () => {
+test("tags travel with the page they were set on", async () => {
+  const opts: Options = { ...defaultOptions, deviceToken: "token", tags: "x" };
+  const sent: string[][] = [];
+  const [, report] = collect();
+
+  for (const tags of [["one", "two"], []]) {
+    await exportPage(
+      page,
+      { ...bare, tags },
+      opts,
+      report,
+      fakeEnv({
+        send: async (_, __, ___, ____, extra) => {
+          sent.push(extra.tags);
+        },
+      }),
+    );
+  }
+
+  // an emptied field means no tags, not the saved ones
+  expect(sent).toEqual([["one", "two"], []]);
+});
+
+test("download under the title typed", async () => {
   const opts: Options = {
     ...defaultOptions,
     outputStyle: "download",
@@ -212,7 +254,7 @@ test("download under the name given", async () => {
 
   await exportPage(
     page,
-    "my: page",
+    { ...bare, title: "my: page" },
     opts,
     report,
     fakeEnv({
@@ -222,7 +264,7 @@ test("download under the name given", async () => {
     }),
   );
 
-  expect(saved).toEqual([["my_ page.epub", false]]);
+  expect(saved).toEqual([["my_ page.epub", true]]);
   expect(states.at(-1)).toEqual({ kind: "finished" });
 });
 
@@ -230,16 +272,16 @@ test("download under the page's own title", async () => {
   const opts: Options = {
     ...defaultOptions,
     outputStyle: "download",
-    downloadAsk: true,
+    downloadAsk: false,
   };
   const saved: [string, boolean][] = [];
   const [, report] = collect();
 
-  // an emptied field asks for the file the same way no field at all would
-  for (const name of [undefined, "   "]) {
+  // an emptied field asks for the page's own title
+  for (const title of ["", "   "]) {
     await exportPage(
       page,
-      name,
+      { ...bare, title },
       opts,
       report,
       fakeEnv({
@@ -251,9 +293,60 @@ test("download under the page's own title", async () => {
   }
 
   expect(saved).toEqual([
-    ["parsed title.epub", true],
-    ["parsed title.epub", true],
+    ["parsed title.epub", false],
+    ["parsed title.epub", false],
   ]);
+});
+
+test("a page read on the way in isn't read again", async () => {
+  const opts: Options = { ...defaultOptions, deviceToken: "token" };
+  const woke: number[] = [];
+  const captured: number[] = [];
+  const [states, report] = collect();
+
+  await exportPage(
+    page,
+    { ...bare, mhtml: new ArrayBuffer(8) },
+    opts,
+    report,
+    fakeEnv({
+      wake: async (tabId) => {
+        woke.push(tabId);
+      },
+      capture: async (tabId) => {
+        captured.push(tabId);
+        return new ArrayBuffer(4);
+      },
+    }),
+  );
+
+  expect(woke).toEqual([]);
+  expect(captured).toEqual([]);
+  // the ring starts where the reading left it, part way along
+  expect(states).toEqual([
+    { kind: "running", ...within(stage.render, 0) },
+    { kind: "running", ...within(stage.send, 0) },
+    { kind: "finished" },
+  ]);
+});
+
+test("a page is woken before it's read", async () => {
+  const woke: number[] = [];
+
+  const read = await preparePage(page, defaultOptions, () => {}, {
+    wake: async (tabId) => {
+      woke.push(tabId);
+    },
+    read: async () => ({
+      mhtml: new ArrayBuffer(4),
+      title: "read title",
+      author: "read author",
+    }),
+  });
+
+  expect(woke).toEqual([1]);
+  expect(read.title).toBe("read title");
+  expect(read.author).toBe("read author");
 });
 
 test("every page goes on its own", async () => {

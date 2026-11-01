@@ -1,7 +1,14 @@
 import { fromByteArray, toByteArray } from "base64-js";
+import { readMetadata } from "./alter";
 import { brighten } from "./image";
 import { generate } from "./lib";
-import type { InitMessage, Message, Response, TrimMessage } from "./messages";
+import type {
+  InitMessage,
+  Message,
+  MetaMessage,
+  Response,
+  TrimMessage,
+} from "./messages";
 import { analyzePdfMargins } from "./pdf-trim";
 import { errString } from "./utils";
 
@@ -51,6 +58,22 @@ async function makeEpub(
   }
 }
 
+function readPageMeta(
+  port: chrome.runtime.Port,
+  payload: Uint8Array,
+  { url, authorByline, filterLinks }: MetaMessage,
+): void {
+  const html = new TextDecoder().decode(payload);
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const { title, author } = readMetadata(doc, {
+    url,
+    authorByline,
+    filterLinks,
+  });
+  const resp: Response = { type: "meta", title, author };
+  port.postMessage(resp);
+}
+
 async function measurePdf(
   port: chrome.runtime.Port,
   payload: Uint8Array,
@@ -64,7 +87,7 @@ async function measurePdf(
 chrome.runtime.onConnect.addListener((port) => {
   const parts: string[] = [];
   let receivedParts = 0;
-  let request: InitMessage | TrimMessage | undefined;
+  let request: InitMessage | TrimMessage | MetaMessage | undefined;
 
   port.onMessage.addListener((message: Message) => {
     if (message.type === "part") {
@@ -79,6 +102,8 @@ chrome.runtime.onConnect.addListener((port) => {
       (async () => {
         if (init.type === "trim") {
           await measurePdf(port, payload, init);
+        } else if (init.type === "meta") {
+          readPageMeta(port, payload, init);
         } else {
           await makeEpub(port, payload, init);
         }

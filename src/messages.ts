@@ -18,6 +18,20 @@ export interface InitMessage {
   summarize: boolean;
 }
 
+/**
+ * read a page's title and author without rendering it
+ *
+ * The payload is the page's html alone, without its images, since nothing
+ * outside the markup names an author.
+ */
+export interface MetaMessage {
+  type: "meta";
+  numParts: number;
+  url: string;
+  authorByline: boolean;
+  filterLinks: boolean;
+}
+
 /** analyze a pdf's margins for the given device */
 export interface TrimMessage {
   type: "trim";
@@ -37,6 +51,13 @@ export interface PartMessage {
   part: string;
 }
 
+/** the title and author read off a page */
+export interface MetaResponse {
+  type: "meta";
+  title?: string;
+  author?: string;
+}
+
 export interface TrimResponse {
   type: "trim";
   zoom: Partial<PutOptions>;
@@ -53,17 +74,44 @@ export interface ErrorMessage {
   err: string;
 }
 
-export type Message = InitMessage | TrimMessage | PartMessage;
+export type Message = InitMessage | TrimMessage | MetaMessage | PartMessage;
 
 export type Response =
   | InitResponse
   | TrimResponse
+  | MetaResponse
   | ProgressResponse
   | PartMessage
   | ErrorMessage;
 
-export interface TitleRequest {
+/** the popup asking what to put in its fields */
+export interface DetailsRequest {
+  type: "details";
+  tabId: number;
+}
+
+/** what the popup puts in its fields */
+export interface DetailsResponse {
+  title: string;
+  author: string;
+  /** the tags already in use on the tablet, for the tag field to offer */
+  known: string[];
+  /**
+   * what went wrong reading the page, when something did
+   *
+   * A page we couldn't read is a page we couldn't convert either, so this
+   * stops the conversion rather than only warning about it.
+   */
+  error?: string;
+}
+
+/** the popup asking for the conversion to go ahead */
+export interface ConvertRequest {
+  type: "convert";
   tabId: number;
   title?: string;
   author?: string;
+  tags?: string[];
 }
+
+export type PopupRequest = DetailsRequest | ConvertRequest;

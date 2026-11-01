@@ -11,6 +11,9 @@ files. It also offers more configuration options over the original extension —
 margins, text scale, line height, alignment, fonts, tags, and a cover page —
 available from the extension's options page.
 
+Clicking the icon converts the page you're on. Right-clicking it offers to set
+the title, author and tags first, filled in with what the page itself names.
+
 ## Firefox
 
 Currently there's an unaffiliated [hard fork](https://github.com/jrockwar/repubfox) that may suit your needs. Full support is [planned](https://github.com/hafacc/repub/issues/14)

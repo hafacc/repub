@@ -4,6 +4,7 @@
   "version": "6.1.4",
   "manifest_version": 3,
   "permissions": [
+    "contextMenus",
     "downloads",
     "storage",
     "notifications",

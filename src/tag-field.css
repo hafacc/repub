@@ -1,0 +1,122 @@
+/* the tag field, drawn the same wherever it's used: the chosen tags sit in the
+   box beside what's being typed, and what could be added runs along a row of
+   its own that is always there and scrolls sideways, so neither one can make
+   the popup or the row it's in any taller */
+
+/* the same metrics a one-line field has: a line box of 1.4375em over 4px/5px
+   padding, with the rule pulled back out of the height, so a tag field and a
+   text field beside it rule in one place however many tags are in it */
+.tag-box {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.3rem;
+  padding: 4px 0 5px;
+  margin-bottom: -1px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  font-size: 0.8125rem;
+  line-height: 1.4375em;
+}
+
+.tag-box::-webkit-scrollbar {
+  display: none;
+}
+
+.tag-box.focus {
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: -2px;
+}
+
+.tag-box.spent {
+  border-bottom-style: dotted;
+}
+
+.tag-input {
+  flex: 1 1 4rem;
+  min-width: 4rem;
+  width: auto;
+  height: 1.4375em;
+  outline: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  box-sizing: content-box;
+  background-color: transparent;
+  font-family: var(--face);
+  font-size: inherit;
+  line-height: inherit;
+  color: var(--ink);
+}
+
+.tag-input:disabled {
+  color: var(--spent);
+}
+
+/* short enough to sit inside the line box, so a tag never makes the field
+   taller than the one beside it */
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: none;
+  background-color: var(--raised);
+  border: 1px solid var(--rule);
+  padding: 0 0.25rem 0 0.4rem;
+  font-family: var(--face);
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.tag-chip button {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 0.8rem;
+  color: var(--quiet);
+  cursor: pointer;
+}
+
+.tag-offers {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.3rem;
+  height: 1.5rem;
+  margin-top: 0.3rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.tag-offers::-webkit-scrollbar {
+  display: none;
+}
+
+.tag-offers button {
+  flex: none;
+  border: 1px dashed var(--rule);
+  background: none;
+  padding: 0 0.4rem;
+  font-family: var(--face);
+  font-size: 0.72rem;
+  line-height: 1.2rem;
+  color: var(--label);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tag-offers button.on,
+.tag-offers button:hover {
+  background-color: var(--raised);
+  border-style: solid;
+  color: var(--ink);
+}
