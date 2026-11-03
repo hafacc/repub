@@ -15,6 +15,28 @@ export type UrlMatcher = (
   iter: Iterable<string>,
 ) => [string, MimeData] | undefined;
 
+/** the part of `href` that names an image, and the size asked for after it */
+function imageParts(
+  href: string,
+): { image: string; query: string } | undefined {
+  const parsed = URL.parse(href);
+  if (parsed === null) {
+    return undefined;
+  } else {
+    return {
+      image: `${parsed.origin}${parsed.pathname}`,
+      query: parsed.search,
+    };
+  }
+}
+
+/** one of the page's images as it was saved, by the url that asked for it */
+interface Saved {
+  href: string;
+  val: MimeData;
+  query: string;
+}
+
 /** only valid if matches exactly, relatively efficient */
 export function exactMatch(assetData: Map<string, MimeData>): UrlMatcher {
   return (hrefs: Iterable<string>): [string, MimeData] | undefined => {
@@ -30,17 +52,19 @@ export function exactMatch(assetData: Map<string, MimeData>): UrlMatcher {
 /**
  * looks for close matches
  *
- * This currently scans all possible urls (slowly) and finds the one with the
- * smallest normalized edit distance in all of the queries.
+ * A url that names the same image as a saved one, up to the size asked for in
+ * its query, matches it outright; the nearest query wins when several of the
+ * same image were saved. Anything else falls back to scanning all of the saved
+ * urls (slowly) for the one with the smallest normalized edit distance.
  *
- * @remarks This currently does raw url matching instead of doing matching
- * based off of the semantics of the url, e.g. putting more emphasis on domain
- * over the rest of the url, or ignoring ordering of parameters. It's not clear
- * how much this advanced similarity is necessary.
+ * @remarks The fallback does raw url matching instead of matching on the
+ * semantics of the url, e.g. putting more emphasis on domain over the rest of
+ * the url, or ignoring ordering of parameters. It's not clear how much this
+ * advanced similarity is necessary.
  *
- * @param thresh - the normalized edit distance threshold. 0 indicates a
- * complete match (for which this function will be inefficient). 1 indicates
- * anything matches and so it will always select an image.
+ * @param thresh - the normalized edit distance threshold for the fallback. 0
+ * indicates a complete match (for which this function will be inefficient). 1
+ * indicates anything matches and so it will always select an image.
  */
 // NOTE this seems only necessary due to this bug:
 // https://bugs.chromium.org/p/chromium/issues/detail?id=1323522
@@ -48,13 +72,47 @@ export function closeMatch(
   assetData: Map<string, MimeData>,
   thresh: number,
 ): UrlMatcher {
+  // the saved images grouped by the part of their url that names the image,
+  // so a page asking for a different size of one still finds it
+  const byImage = new Map<string, Saved[]>();
+  for (const [href, val] of assetData) {
+    const parts = imageParts(href);
+    if (parts !== undefined) {
+      const saved = { href, val, query: parts.query };
+      const group = byImage.get(parts.image);
+      if (group) {
+        group.push(saved);
+      } else {
+        byImage.set(parts.image, [saved]);
+      }
+    }
+  }
+
   /* NOTE this could be better if we actually parsed the hrefs and looked at
    * differences there so that ordering of query parameters wouldn't affect it,
    * etc. */
   return (hrefs: Iterable<string>): [string, MimeData] | undefined => {
+    const asked = [...hrefs];
+    for (const href of asked) {
+      const val = assetData.get(href);
+      if (val) {
+        return [href, val];
+      }
+    }
+    for (const href of asked) {
+      const parts = imageParts(href);
+      const group = parts && byImage.get(parts.image);
+      if (parts && group) {
+        const { query } = parts;
+        const nearest = group.reduce((best, test) =>
+          leven(query, test.query) < leven(query, best.query) ? test : best,
+        );
+        return [nearest.href, nearest.val];
+      }
+    }
     let match: [string, MimeData] | undefined;
     let score = thresh;
-    for (const href of hrefs) {
+    for (const href of asked) {
       for (const [test, val] of assetData) {
         const dist = leven(href, test) / Math.max(href.length, test.length);
         if (dist < score) {
