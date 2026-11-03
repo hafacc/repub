@@ -154,6 +154,11 @@ global.Image = dom.window["Image"] as typeof Image;
       type: "boolean",
       default: defaultOptions.authorByline,
     })
+    .option("domain-byline", {
+      describe: "use the domain as the byline when the page names no author",
+      type: "boolean",
+      default: defaultOptions.domainByline,
+    })
     .option("verbose", {
       alias: "v",
       describe: "verbosity to log information",
@@ -184,6 +189,7 @@ global.Image = dom.window["Image"] as typeof Image;
       bylineHeader: args.bylineHeader,
       coverHeader: args.coverHeader,
       authorByline: args.authorByline,
+      domainByline: args.domainByline,
       // below are unused
       customCss: "",
       imageBrightness: 1,

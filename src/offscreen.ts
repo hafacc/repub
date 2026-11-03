@@ -61,13 +61,14 @@ async function makeEpub(
 function readPageMeta(
   port: chrome.runtime.Port,
   payload: Uint8Array,
-  { url, authorByline, filterLinks }: MetaMessage,
+  { url, authorByline, domainByline, filterLinks }: MetaMessage,
 ): void {
   const html = new TextDecoder().decode(payload);
   const doc = new DOMParser().parseFromString(html, "text/html");
   const { title, author } = readMetadata(doc, {
     url,
     authorByline,
+    domainByline,
     filterLinks,
   });
   const resp: Response = { type: "meta", title, author };

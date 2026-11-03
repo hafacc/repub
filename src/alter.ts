@@ -169,6 +169,7 @@ interface WalkOptions {
 
 interface Options extends WalkOptions {
   authorByline: boolean;
+  domainByline: boolean;
   // the document's original url, used to resolve relative hrefs
   url: string;
   shrinkGlyphs: ShrinkMode;
@@ -621,6 +622,16 @@ export function resolveByline(
   }
 }
 
+/** the domain `url` sits on, for a page that names nobody */
+export function domainName(url: string): string | undefined {
+  const parsed = URL.parse(url);
+  if (parsed === null) {
+    return undefined;
+  } else {
+    return parsed.hostname.replace(/^www\./, "") || undefined;
+  }
+}
+
 /** the authors the page names outright, when those are to be preferred */
 function declaredAuthors(doc: Document, authorByline: boolean): string | null {
   const authors = authorByline
@@ -652,23 +663,31 @@ export function readMetadata(
   {
     url,
     authorByline,
+    domainByline,
     filterLinks,
-  }: { url: string; authorByline: boolean; filterLinks: boolean },
+  }: {
+    url: string;
+    authorByline: boolean;
+    domainByline: boolean;
+    filterLinks: boolean;
+  },
 ): Metadata {
   const declared = declaredAuthors(doc, authorByline);
   const { title, byline } = summarizeDoc(doc, url, filterLinks);
-  return { title, author: resolveByline(declared, byline) };
+  const domain = domainByline ? domainName(url) : undefined;
+  return { title, author: resolveByline(declared, byline) ?? domain };
 }
 
 /** update img src's with srcset information */
 export async function alter(
   doc: Document,
   match: UrlMatcher,
-  { authorByline, url, shrinkGlyphs, fontName, ...opts }: Options,
+  { authorByline, domainByline, url, shrinkGlyphs, fontName, ...opts }: Options,
   summarize: boolean = true,
 ): Promise<Altered> {
   const [cover] = match(coverUrls(doc)) ?? [];
   const author = declaredAuthors(doc, authorByline);
+  const domain = domainByline ? domainName(url) : undefined;
 
   const { content, title, byline } = summarize
     ? summarizeDoc(doc, url, opts.filterLinks)
@@ -691,7 +710,7 @@ export async function alter(
   return {
     altered: serial.serializeToString(content),
     title: title ?? "unknown title",
-    byline: resolveByline(author, byline),
+    byline: resolveByline(author, byline) ?? domain,
     cover,
     seen,
     images,

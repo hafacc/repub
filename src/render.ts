@@ -144,7 +144,7 @@ export interface Metadata {
 export async function readMetadata(
   html: Uint8Array,
   url: string,
-  { authorByline, filterLinks }: EpubOptions,
+  { authorByline, domainByline, filterLinks }: EpubOptions,
 ): Promise<Metadata> {
   return await exchange<Metadata>(
     (numParts): MetaMessage => ({
@@ -152,6 +152,7 @@ export async function readMetadata(
       numParts,
       url,
       authorByline,
+      domainByline,
       filterLinks,
     }),
     html,

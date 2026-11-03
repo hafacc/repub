@@ -3,6 +3,7 @@ import { JSDOM } from "jsdom";
 import {
   closeMatch,
   coverUrls,
+  domainName,
   dropAltCaptions,
   exactMatch,
   type MimeData,
@@ -340,6 +341,7 @@ test("readMetadata() reads the title and author off a page", () => {
     readMetadata(doc, {
       url: "https://example.com/a-page",
       authorByline: true,
+      domainByline: false,
       filterLinks: true,
     }),
   ).toEqual({ title: "What the page is called", author: "Ann Alpha" });
@@ -353,8 +355,46 @@ test("readMetadata() comes back with no author when the page names none", () => 
   const { title, author } = readMetadata(doc, {
     url: "https://example.com/a-page",
     authorByline: true,
+    domainByline: false,
     filterLinks: true,
   });
   expect(title).toBe("What the page is called");
   expect(author).toBeUndefined();
+});
+
+test("domainName() gives the domain without its www", () => {
+  expect(domainName("https://www.example.com/a-page")).toBe("example.com");
+  expect(domainName("https://news.example.co.uk/a-page")).toBe(
+    "news.example.co.uk",
+  );
+  expect(domainName("not a url")).toBeUndefined();
+});
+
+test("readMetadata() falls back to the domain when the page names no author", () => {
+  const doc = parsePage(
+    "<title>What the page is called</title>",
+    `<article><h1>What the page is called</h1>${article}</article>`,
+  );
+  const { author } = readMetadata(doc, {
+    url: "https://www.example.com/a-page",
+    authorByline: true,
+    domainByline: true,
+    filterLinks: true,
+  });
+  expect(author).toBe("example.com");
+});
+
+test("readMetadata() keeps the author the page names over the domain", () => {
+  const doc = parsePage(
+    `<title>What the page is called</title>
+     <meta name="author" content="Ann Alpha">`,
+    `<article><h1>What the page is called</h1>${article}</article>`,
+  );
+  const { author } = readMetadata(doc, {
+    url: "https://www.example.com/a-page",
+    authorByline: true,
+    domainByline: true,
+    filterLinks: true,
+  });
+  expect(author).toBe("Ann Alpha");
 });
