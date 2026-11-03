@@ -162,12 +162,33 @@ test("closeMatch() picks the nearest asset within the threshold", () => {
     ["https://ex.com/photo.png", asset("photo")],
     ["https://ex.com/unrelated-image-name.png", asset("other")],
   ]);
-  expect(closeMatch(assets, 0.3)(["https://ex.com/photo.png?w=100"])?.[0]).toBe(
+  expect(closeMatch(assets, 0.3)(["https://ex.com/photo-2.png"])?.[0]).toBe(
     "https://ex.com/photo.png",
   );
   expect(
-    closeMatch(assets, 0.01)(["https://ex.com/photo.png?w=100"]),
+    closeMatch(assets, 0.01)(["https://ex.com/photo-2.png"]),
   ).toBeUndefined();
+});
+
+test("closeMatch() matches the same image whatever size was asked for", () => {
+  const saved = "https://ex.com/im-123?width=700&size=1.000&pixel_ratio=2";
+  const assets = new Map([[saved, asset("photo")]]);
+  expect(
+    closeMatch(
+      assets,
+      0.2,
+    )(["https://ex.com/im-123?width=700&height=700"])?.[0],
+  ).toBe(saved);
+});
+
+test("closeMatch() takes the nearest size of an image saved at several", () => {
+  const assets = new Map([
+    ["https://ex.com/im-123?width=200", asset("small")],
+    ["https://ex.com/im-123?width=700", asset("large")],
+  ]);
+  expect(
+    closeMatch(assets, 0.2)(["https://ex.com/im-123?width=720"])?.[0],
+  ).toBe("https://ex.com/im-123?width=700");
 });
 
 test("dropAltCaptions() removes a caption that only repeats the alt text", () => {
