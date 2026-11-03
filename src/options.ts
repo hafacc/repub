@@ -56,6 +56,7 @@ export interface EpubOptions extends CssOptions {
   filterLinks: boolean;
   filterIframes: boolean;
   authorByline: boolean;
+  domainByline: boolean;
   convertTables: boolean;
   rotateTables: boolean;
   tableResolution: number;
@@ -113,6 +114,7 @@ export const defaultOptions: Options = {
   filterLinks: true,
   filterIframes: true,
   authorByline: true,
+  domainByline: true,
   convertTables: false,
   rotateTables: false,
   tableResolution: 1,

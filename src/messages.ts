@@ -29,6 +29,7 @@ export interface MetaMessage {
   numParts: number;
   url: string;
   authorByline: boolean;
+  domainByline: boolean;
   filterLinks: boolean;
 }
 
