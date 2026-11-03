@@ -692,6 +692,14 @@ function EpubOptions({
         setOpts={setOpts}
       />
       <SimplCheckboxSelection
+        name="domainByline"
+        title="Use the domain when no author is found"
+        caption="Some articles name no author at all. If this is true, the
+        page's domain, like example.com, stands in for one."
+        opts={opts}
+        setOpts={setOpts}
+      />
+      <SimplCheckboxSelection
         name="coverHeader"
         title="Include cover image in epub"
         caption="Include the extracted cover image right below the article title
