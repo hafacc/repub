@@ -1269,7 +1269,9 @@ function UploadOptions({
         document-wide fit to any PDF you upload or print, and doesn't alter the
         file itself."
       />
-      <TagsSelector tags={opts.tags} setOpts={setOpts} />
+      {opts.outputStyle === "download" ? null : (
+        <TagsSelector tags={opts.tags} setOpts={setOpts} />
+      )}
     </Stack>
   );
 }
